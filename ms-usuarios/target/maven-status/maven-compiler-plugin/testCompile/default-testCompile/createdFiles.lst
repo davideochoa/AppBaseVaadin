@@ -1,4 +1,0 @@
-com\appbasevaadin\msusuarios\repository\UsuarioRepositoryIT.class
-com\appbasevaadin\msusuarios\support\PostgresTestContainerBase.class
-com\appbasevaadin\msusuarios\service\UsuarioServiceTest.class
-com\appbasevaadin\msusuarios\controller\UsuarioControllerIT.class
