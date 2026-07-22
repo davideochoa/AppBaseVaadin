@@ -119,7 +119,7 @@
       <tr>
         <td><code>ms-security</code></td>
         <td>Single source of identity: local login + Google OAuth2/OIDC, issues JWTs (RS256)</td>
-        <td class="status pending">⏳ Pending</td>
+        <td class="status done">✅ Phase 2 complete</td>
       </tr>
       <tr>
         <td><code>ms-audit</code></td>
@@ -150,7 +150,7 @@
       Swagger + Actuator, working standalone.
     </li>
     <li>
-      <span class="badge">Phase 2</span><br>
+      <span class="badge">Phase 2 — complete</span><br>
       <strong><code>ms-security</code></strong>: RS256 JWT + JWKS, its own
       credentials cache (<code>user_security</code>) so local login doesn't
       depend on <code>ms-users</code>, Google login via id-token, and back
@@ -181,10 +181,10 @@
   <h2>Current status</h2>
   <p>
     Active branch: <code>feature/ms-usuarios_fase1</code>. <code>ms-users</code>
-    has been built, manually verified end-to-end against a real Postgres
-    database, and has its own CI workflow
-    (<code>.github/workflows/ms-users-ci.yml</code>) that runs on every
-    change under <code>ms-users/**</code>.
+    and <code>ms-security</code> have both been built and manually
+    verified end-to-end against real Postgres databases (local login,
+    Google id-token rejection, JWT issuing/refresh/revocation, role-gated
+    access, rate limiting), each with its own CI workflow.
   </p>
 
   <footer>

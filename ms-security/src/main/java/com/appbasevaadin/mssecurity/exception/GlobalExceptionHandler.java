@@ -1,12 +1,10 @@
-package com.appbasevaadin.msusers.exception;
+package com.appbasevaadin.mssecurity.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -29,22 +27,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
-    @ExceptionHandler({UserNotFoundException.class, UserTypeNotFoundException.class})
-    public ResponseEntity<ApiError> handleNotFound(RuntimeException ex) {
-        ApiError error = new ApiError(LocalDateTime.now(), HttpStatus.NOT_FOUND.value(),
-                "NOT_FOUND", ex.getMessage(), List.of());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-    }
-
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex) {
-        // AuthorizationDeniedException (thrown by @PreAuthorize) extends AccessDeniedException.
-        // It must be handled here explicitly: DispatcherServlet resolves @ExceptionHandlers
-        // before the exception can propagate to Spring Security's ExceptionTranslationFilter,
-        // so without this the catch-all handler below would swallow it as a 500.
-        ApiError error = new ApiError(LocalDateTime.now(), HttpStatus.FORBIDDEN.value(),
-                "FORBIDDEN", "You do not have permission to access this resource", List.of());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    @ExceptionHandler({InvalidCredentialsException.class, InvalidGoogleTokenException.class,
+            InvalidRefreshTokenException.class})
+    public ResponseEntity<ApiError> handleUnauthorized(RuntimeException ex) {
+        ApiError error = new ApiError(LocalDateTime.now(), HttpStatus.UNAUTHORIZED.value(),
+                "UNAUTHORIZED", ex.getMessage(), List.of());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

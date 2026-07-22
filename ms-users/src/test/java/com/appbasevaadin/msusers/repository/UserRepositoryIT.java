@@ -74,4 +74,13 @@ class UserRepositoryIT extends PostgresTestContainerBase {
         assertThatCode(() -> found.get().getUserType().getName())
                 .doesNotThrowAnyException();
     }
+
+    @Test
+    void findByEmailIgnoreCaseIsCaseInsensitiveAndLoadsUserType() {
+        Optional<User> found = userRepository.findByEmailIgnoreCase("JANE.DOE@EXAMPLE.COM");
+
+        assertThat(found).isPresent();
+        assertThatCode(() -> found.get().getUserType().getName())
+                .doesNotThrowAnyException();
+    }
 }

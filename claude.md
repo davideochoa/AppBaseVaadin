@@ -243,6 +243,58 @@ Needed alongside `@DataJpaTest` with
 any time the test should hit a real Testcontainers database instead of
 the auto-replaced in-memory one.
 
+### 8. `requestMatchers("GET", ...)` silently drops the HTTP-method restriction
+
+**Symptom:** an unauthenticated `POST /users` reached the controller and
+got a 400 (validation) or 500 instead of the expected 401 — manual
+verification caught this, not a unit test, because the request "looked"
+handled.
+
+**Cause:** `AuthorizationManagerRequestMatcherRegistry.requestMatchers`
+has two overloads: `requestMatchers(String... patterns)` and
+`requestMatchers(HttpMethod method, String... patterns)`. Writing
+`.requestMatchers("GET", "/users/**").permitAll()` passes a `String`
+literal, not an `HttpMethod`, so Java resolves the varargs-only overload
+— `"GET"` becomes an extra **path pattern** to match (a literal path of
+"GET"), not a method filter. The real effect is `permitAll()` on
+`/users/**` for **every** HTTP method, silently defeating the intended
+GET-only restriction. Compiles fine, no warning, wrong at runtime.
+
+**Rule going forward:** always pass the `org.springframework.http.HttpMethod`
+enum constant (`HttpMethod.GET`), never a `String`, when restricting
+`requestMatchers` by method. Verify this manually with a raw
+unauthenticated request against a write endpoint (Lesson 6's workaround)
+— don't trust that "the code reads right."
+
+### 9. A catch-all `@ExceptionHandler(Exception.class)` swallows `AccessDeniedException`, turning a 403 into a 500
+
+**Symptom:** a `@PreAuthorize("hasRole('ADMINISTRATOR')")` denial (valid
+token, wrong role) returned 500 `INTERNAL_ERROR` instead of 403, even
+though a `JwtAccessDeniedHandler` was correctly wired into
+`HttpSecurity.exceptionHandling().accessDeniedHandler(...)`.
+
+**Cause:** `@PreAuthorize` denials throw `AuthorizationDeniedException`
+(a subclass of `AccessDeniedException`) from inside the proxied
+controller method invocation, which happens *inside*
+`DispatcherServlet`'s own handler dispatch. Spring MVC resolves
+`@RestControllerAdvice`/`@ExceptionHandler`s at that point — if a
+catch-all `Exception.class` handler exists, it catches the exception
+right there. It never gets the chance to propagate out of
+`DispatcherServlet.doDispatch()` to Spring Security's
+`ExceptionTranslationFilter`, which is what would otherwise route it to
+the configured `AccessDeniedHandler`. The filter-level handler only ever
+sees denials from `authorizeHttpRequests` matchers, never from method
+security.
+
+**Rule going forward:** any `GlobalExceptionHandler` in a resource-server
+microservice must explicitly catch
+`org.springframework.security.access.AccessDeniedException` (covers
+`AuthorizationDeniedException` too) and map it to 403 with the same
+`ApiError` shape, defined alongside the other specific handlers — do not
+rely on the servlet-filter-level `AccessDeniedHandler` alone to catch
+`@PreAuthorize` denials in a service that also has a catch-all exception
+handler.
+
 ---
 
 ## Security spec (build this in from Phase 1, not retrofitted)
@@ -391,6 +443,72 @@ written with Spanish entity/field/endpoint names:
 
 Re-verified after the rename: `mvn clean package -DskipTests` compiles
 cleanly (main and test sources) under the new package/class names.
+
+### Phase 2 — `ms-security`: DONE (2026-07-22)
+
+Built standalone per build order point 2: RS256 JWT signing + JWKS
+(Lesson 4) via Spring Security's `NimbusJwtEncoder`/`NimbusJwtDecoder`
+backed by an in-memory `RSAKey` (loaded from
+`app.jwt.private/public-key-pem` if configured, else an ephemeral
+keypair generated at startup with a `WARN` log); its own `user_security`
++ `refresh_token` cache tables (Lesson 5) so local login never calls
+`ms-users`; `.logout(logout -> logout.disable())` from the start
+(Lesson 3); Google login as id-token passthrough via
+`GoogleIdTokenVerifier` (`com.google.api-client`), auto-provisioning a
+non-admin `UserType` user in `ms-users` through `UsersClient` on first
+sight of a Google email (Lesson 5b), with the default-type lookup
+memoized in `UserTypeCache`. Refresh tokens are opaque random strings,
+stored SHA-256-hashed, individually revocable by row; access tokens
+carry `sub`/`email`/`role` claims. Rate limiting (Bucket4j, 5 req/min/IP)
+on `/login` and `/login/google` (shared bucket per IP across both).
+Bootstrap admin seeded via a **Flyway Java migration**
+(`V3__SeedBootstrapAdmin`, package `db.migration`, BCrypt hash computed
+at migration time) rather than plain SQL, since hashing needs code —
+`user_id` is nullable on `user_security` to allow this bootstrap
+identity to exist with no matching `ms-users` profile yet.
+
+Also retrofitted into `ms-users` per build order point 2:
+`findByEmailIgnoreCase` + `GET /users/by-email`, `oauth2ResourceServer().jwt()`
+validating against `ms-security`'s JWKS (`MS_SECURITY_JWKS_URI`), a
+`JwtRoleConverter` mapping the `role` claim to `ROLE_<value>`,
+`@PreAuthorize("hasRole('ADMINISTRATOR')")` on the write endpoints, CORS
++ explicit security headers (added now since this was `ms-users`' first
+pass at any security config at all).
+
+Two real bugs were found only during manual end-to-end verification
+(both now Lessons 8 and 9 above) — worth restating why unit/integration
+tests alone didn't catch them: `UserControllerIT`'s fake-`JwtDecoder`
+test setup exercised `@PreAuthorize` correctly in isolation, but the
+`requestMatchers("GET", ...)` bug only manifests when a *real*
+`SecurityFilterChain` evaluates a raw, tokenless request end-to-end —
+exactly the scenario the Lesson 6 manual-curl workaround is for. Same
+for the `AccessDeniedException`-swallowed-into-500 bug. This is a
+concrete argument for keeping the manual verification step even once
+Testcontainers works again: filter-chain wiring bugs like these don't
+show up from inside a single `@PreAuthorize`-annotated method call.
+
+Verified per Lesson 6 (Testcontainers still fails locally with the same
+`docker-java` `BadRequestException` — re-confirmed once more this
+session, no change): two disposable Postgres containers, both apps via
+`mvn spring-boot:run`, then by hand: JWKS reachable; bootstrap-admin
+login issues a valid access+refresh token with correct claims;
+unauthenticated `POST /users` → 401; admin token → 201; non-admin token
+(inserted directly for this check, a real BCrypt hash generated via
+`jshell` + `spring-security-crypto` on the classpath, since no
+registration endpoint exists yet) → 403; `/refresh` rotates and the old
+token becomes unusable; `/logout` revokes and reuse fails;
+`/login/google` with a garbage id-token → 401; 6th `/login` attempt
+within a minute → 429. Pure-unit tests (`AuthServiceTest`,
+`RateLimitFilterTest` — the latter deliberately *not* a Spring-context
+test, to avoid cross-test bucket contamination) run and pass locally
+without Docker. Testcontainers-backed tests
+(`SecurityUserRepositoryIT`, `AuthControllerIT`) were written but not
+run locally, same as Phase 1 — they run in the new
+`.github/workflows/ms-security-ci.yml` (same pattern as
+`ms-users-ci.yml`, scoped to `paths: ms-security/**`).
+
+Not yet started: `ms-audit`, `app-vaadin`, `docker-compose.yml`, the
+remaining CI workflows, Dependabot.
 
 At the end of each phase, fold anything newly learned back into this
 file's Lessons section (rule form: symptom → cause → rule), and record

@@ -38,6 +38,12 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    public User getByEmail(String email) {
+        return userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> UserNotFoundException.forEmail(email));
+    }
+
+    @Transactional(readOnly = true)
     public Page<User> search(String text, Long userTypeId, Boolean active, Pageable pageable) {
         return userRepository.search(text, userTypeId, active, pageable);
     }

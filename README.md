@@ -10,7 +10,7 @@ another frontend later without touching the microservices.
 | Module         | Responsibility                                                              | Status |
 |----------------|------------------------------------------------------------------------------|--------|
 | `ms-users`     | User CRUD and user-type catalog, owns its own database                      | ✅ Phase 1 complete |
-| `ms-security`  | Single source of identity: local login + Google OAuth2/OIDC, issues JWTs (RS256) | ⏳ Pending |
+| `ms-security`  | Single source of identity: local login + Google OAuth2/OIDC, issues JWTs (RS256) | ✅ Phase 2 complete |
 | `ms-audit`     | Kafka event consumer (`audit` topic), exposes read-only history             | ⏳ Pending |
 | `app-vaadin`   | Vaadin Flow frontend, no database or business logic of its own              | ⏳ Pending |
 
@@ -28,7 +28,7 @@ Spring Boot Actuator · Testcontainers + JUnit 5.
 2. **`ms-security`** — RS256 JWT + JWKS, its own credentials cache
    (`user_security`) so local login doesn't depend on `ms-users`,
    Google login via id-token, and back in `ms-users`: JWT validation +
-   `@PreAuthorize` + lookup by email for auto-provisioning.
+   `@PreAuthorize` + lookup by email for auto-provisioning. ✅ **Complete.**
 3. **`ms-audit` + Kafka** — event producer in `ms-users`/`ms-security`,
    consumer in `ms-audit` (includes `LOGIN_FAILED` on every failed login
    attempt).
@@ -43,7 +43,9 @@ Full architecture detail, security decisions, and lessons learned
 
 ## Current status
 
-Active branch: `feature/ms-usuarios_fase1`. `ms-users` has been built,
-manually verified end-to-end against a real Postgres database, and has
-its own CI workflow (`.github/workflows/ms-users-ci.yml`) that runs on
-every change under `ms-users/**`.
+Active branch: `feature/ms-usuarios_fase1`. `ms-users` and `ms-security`
+have both been built and manually verified end-to-end against real
+Postgres databases (local login, Google id-token rejection, JWT
+issuing/refresh/revocation, role-gated access, rate limiting), each with
+its own CI workflow (`.github/workflows/ms-users-ci.yml`,
+`.github/workflows/ms-security-ci.yml`).

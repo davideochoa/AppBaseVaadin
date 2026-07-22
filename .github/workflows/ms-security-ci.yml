@@ -1,0 +1,41 @@
+name: ms-security CI
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "ms-security/**"
+      - ".github/workflows/ms-security-ci.yml"
+  pull_request:
+    paths:
+      - "ms-security/**"
+      - ".github/workflows/ms-security-ci.yml"
+
+defaults:
+  run:
+    working-directory: ms-security
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build and run tests (Testcontainers via Docker on the runner)
+        run: mvn --batch-mode --update-snapshots clean verify
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ms-security-surefire-reports
+          path: ms-security/target/surefire-reports
+          if-no-files-found: ignore

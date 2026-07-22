@@ -1,0 +1,43 @@
+server:
+  port: ${SERVER_PORT:8082}
+
+spring:
+  application:
+    name: ms-security
+  datasource:
+    url: jdbc:postgresql://${DB_SECURITY_HOST:localhost}:${DB_SECURITY_PORT:5432}/${DB_SECURITY_NAME:ms_security}
+    username: ${DB_SECURITY_USER:ms_security_app}
+    password: ${DB_SECURITY_PASSWORD:ms_security_pass}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  jwt:
+    private-key-pem: ${APP_JWT_PRIVATE_KEY_PEM:}
+    public-key-pem: ${APP_JWT_PUBLIC_KEY_PEM:}
+    access-token-ttl-minutes: ${ACCESS_TOKEN_TTL_MINUTES:10}
+    refresh-token-ttl-days: ${REFRESH_TOKEN_TTL_DAYS:7}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+  cors:
+    allowed-origin: ${APP_VAADIN_ORIGIN:http://localhost:8080}
+  clients:
+    ms-users-base-url: ${MS_USERS_BASE_URL:http://localhost:8081}
