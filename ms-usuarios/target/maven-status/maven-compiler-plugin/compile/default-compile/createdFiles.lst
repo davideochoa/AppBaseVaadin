@@ -1,0 +1,17 @@
+com\appbasevaadin\msusuarios\exception\TipoUsuarioNoEncontradoException.class
+com\appbasevaadin\msusuarios\service\UsuarioService.class
+com\appbasevaadin\msusuarios\dto\TipoUsuarioResponse.class
+com\appbasevaadin\msusuarios\dto\UsuarioRequest.class
+com\appbasevaadin\msusuarios\service\TipoUsuarioService.class
+com\appbasevaadin\msusuarios\dto\UsuarioResponse.class
+com\appbasevaadin\msusuarios\exception\ApiError.class
+com\appbasevaadin\msusuarios\controller\TipoUsuarioController.class
+com\appbasevaadin\msusuarios\MsUsuariosApplication.class
+com\appbasevaadin\msusuarios\controller\UsuarioController.class
+com\appbasevaadin\msusuarios\exception\UsuarioNoEncontradoException.class
+com\appbasevaadin\msusuarios\repository\TipoUsuarioRepository.class
+com\appbasevaadin\msusuarios\exception\GlobalExceptionHandler.class
+com\appbasevaadin\msusuarios\exception\ApiError$ErrorCampo.class
+com\appbasevaadin\msusuarios\repository\UsuarioRepository.class
+com\appbasevaadin\msusuarios\entity\TipoUsuario.class
+com\appbasevaadin\msusuarios\entity\Usuario.class
