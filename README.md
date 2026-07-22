@@ -11,7 +11,7 @@ another frontend later without touching the microservices.
 |----------------|------------------------------------------------------------------------------|--------|
 | `ms-users`     | User CRUD and user-type catalog, owns its own database                      | ✅ Phase 1 complete |
 | `ms-security`  | Single source of identity: local login + Google OAuth2/OIDC, issues JWTs (RS256) | ✅ Phase 2 complete |
-| `ms-audit`     | Kafka event consumer (`audit` topic), exposes read-only history             | ⏳ Pending |
+| `ms-audit`     | Kafka event consumer (`audit` topic), exposes read-only history             | ✅ Phase 3 complete |
 | `app-vaadin`   | Vaadin Flow frontend, no database or business logic of its own              | ⏳ Pending |
 
 ## Stack
@@ -31,7 +31,7 @@ Spring Boot Actuator · Testcontainers + JUnit 5.
    `@PreAuthorize` + lookup by email for auto-provisioning. ✅ **Complete.**
 3. **`ms-audit` + Kafka** — event producer in `ms-users`/`ms-security`,
    consumer in `ms-audit` (includes `LOGIN_FAILED` on every failed login
-   attempt).
+   attempt). ✅ **Complete.**
 4. **`app-vaadin`** — consumes the three microservices over REST, no
    database or business logic of its own, i18n EN/ES.
 5. **Integration** — full `docker-compose.yml`, per-module CI workflows
@@ -43,9 +43,9 @@ Full architecture detail, security decisions, and lessons learned
 
 ## Current status
 
-Active branch: `feature/ms-usuarios_fase1`. `ms-users` and `ms-security`
-have both been built and manually verified end-to-end against real
-Postgres databases (local login, Google id-token rejection, JWT
-issuing/refresh/revocation, role-gated access, rate limiting), each with
-its own CI workflow (`.github/workflows/ms-users-ci.yml`,
-`.github/workflows/ms-security-ci.yml`).
+`ms-users`, `ms-security`, and `ms-audit` have all been built and
+manually verified end-to-end against real Postgres databases and a real
+Kafka broker (local login, Google id-token rejection, JWT
+issuing/refresh/revocation, role-gated access, rate limiting, failed
+logins landing in the audit log), each with its own CI workflow
+(`.github/workflows/ms-users-ci.yml`, `ms-security-ci.yml`, `ms-audit-ci.yml`).

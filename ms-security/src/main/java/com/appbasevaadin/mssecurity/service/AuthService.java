@@ -5,6 +5,7 @@ import com.appbasevaadin.mssecurity.entity.RefreshToken;
 import com.appbasevaadin.mssecurity.entity.SecurityUser;
 import com.appbasevaadin.mssecurity.exception.InvalidCredentialsException;
 import com.appbasevaadin.mssecurity.exception.InvalidRefreshTokenException;
+import com.appbasevaadin.mssecurity.messaging.AuditEventPublisher;
 import com.appbasevaadin.mssecurity.repository.RefreshTokenRepository;
 import com.appbasevaadin.mssecurity.repository.SecurityUserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,23 +22,28 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
+    private final AuditEventPublisher auditEventPublisher;
 
     public AuthService(SecurityUserRepository securityUserRepository,
                         RefreshTokenRepository refreshTokenRepository,
                         JwtService jwtService,
-                        PasswordEncoder passwordEncoder) {
+                        PasswordEncoder passwordEncoder,
+                        AuditEventPublisher auditEventPublisher) {
         this.securityUserRepository = securityUserRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtService = jwtService;
         this.passwordEncoder = passwordEncoder;
+        this.auditEventPublisher = auditEventPublisher;
     }
 
-    public TokenResponse login(String email, String rawPassword) {
+    public TokenResponse login(String email, String rawPassword, String ipAddress) {
         SecurityUser user = securityUserRepository.findByEmailIgnoreCase(email)
                 .filter(SecurityUser::isActive)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElse(null);
 
-        if (user.getPasswordHash() == null || !passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+        if (user == null || user.getPasswordHash() == null
+                || !passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            auditEventPublisher.publishLoginFailed(email, ipAddress);
             throw new InvalidCredentialsException();
         }
 

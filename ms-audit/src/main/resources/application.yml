@@ -1,0 +1,54 @@
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  application:
+    name: ms-audit
+  datasource:
+    url: jdbc:postgresql://${DB_AUDIT_HOST:localhost}:${DB_AUDIT_PORT:5432}/${DB_AUDIT_NAME:ms_audit}
+    username: ${DB_AUDIT_USER:ms_audit_app}
+    password: ${DB_AUDIT_PASSWORD:ms_audit_pass}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ms-audit
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.appbasevaadin.msaudit.messaging
+        spring.json.value.default.type: com.appbasevaadin.msaudit.messaging.AuditEventMessage
+        spring.json.use.type.headers: false
+    listener:
+      ack-mode: record
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${MS_SECURITY_JWKS_URI:http://localhost:8082/.well-known/jwks.json}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  kafka:
+    audit-topic: ${AUDIT_TOPIC:audit}
+  cors:
+    allowed-origin: ${APP_VAADIN_ORIGIN:http://localhost:8080}

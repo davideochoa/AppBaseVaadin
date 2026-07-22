@@ -6,6 +6,7 @@ import com.appbasevaadin.mssecurity.dto.TokenResponse;
 import com.appbasevaadin.mssecurity.entity.AuthProvider;
 import com.appbasevaadin.mssecurity.entity.SecurityUser;
 import com.appbasevaadin.mssecurity.exception.InvalidGoogleTokenException;
+import com.appbasevaadin.mssecurity.messaging.AuditEventPublisher;
 import com.appbasevaadin.mssecurity.repository.SecurityUserRepository;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -28,12 +29,14 @@ public class GoogleLoginService {
     private final UsersClient usersClient;
     private final UserTypeCache userTypeCache;
     private final AuthService authService;
+    private final AuditEventPublisher auditEventPublisher;
 
     public GoogleLoginService(@Value("${app.google.client-id}") String googleClientId,
                                SecurityUserRepository securityUserRepository,
                                UsersClient usersClient,
                                UserTypeCache userTypeCache,
-                               AuthService authService) {
+                               AuthService authService,
+                               AuditEventPublisher auditEventPublisher) {
         this.verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
                 .setAudience(Collections.singletonList(googleClientId))
                 .build();
@@ -41,11 +44,12 @@ public class GoogleLoginService {
         this.usersClient = usersClient;
         this.userTypeCache = userTypeCache;
         this.authService = authService;
+        this.auditEventPublisher = auditEventPublisher;
     }
 
     @Transactional
-    public TokenResponse login(String rawIdToken) {
-        GoogleIdToken.Payload payload = verify(rawIdToken);
+    public TokenResponse login(String rawIdToken, String ipAddress) {
+        GoogleIdToken.Payload payload = verify(rawIdToken, ipAddress);
         String email = payload.getEmail();
 
         SecurityUser securityUser = securityUserRepository.findByEmailIgnoreCase(email)
@@ -78,14 +82,16 @@ public class GoogleLoginService {
                 userTypeCache.getDefaultNonAdminUserTypeId());
     }
 
-    private GoogleIdToken.Payload verify(String rawIdToken) {
+    private GoogleIdToken.Payload verify(String rawIdToken, String ipAddress) {
         try {
             GoogleIdToken idToken = verifier.verify(rawIdToken);
             if (idToken == null) {
+                auditEventPublisher.publishLoginFailed(null, ipAddress);
                 throw new InvalidGoogleTokenException("signature or audience check failed");
             }
             return idToken.getPayload();
         } catch (GeneralSecurityException | java.io.IOException | IllegalArgumentException e) {
+            auditEventPublisher.publishLoginFailed(null, ipAddress);
             throw new InvalidGoogleTokenException(e.getMessage());
         }
     }

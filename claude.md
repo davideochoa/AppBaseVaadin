@@ -295,6 +295,45 @@ rely on the servlet-filter-level `AccessDeniedHandler` alone to catch
 `@PreAuthorize` denials in a service that also has a catch-all exception
 handler.
 
+### 10. Spring Kafka has no smart default for JSON (de)serialization — it silently falls back to `String`
+
+**Symptom (producer):** `SerializationException: Can't convert value of
+class LoginFailedEvent to class StringSerializer` — caught by the
+best-effort try/catch around the publish call (Lesson/decision from
+Phase 3), so it only showed up as a quiet `WARN` in the log, not an
+error anywhere in the response.
+
+**Symptom (consumer, a second, separate bug found right after fixing the
+first):** `MessageConversionException: Cannot convert from
+java.lang.String to AuditEventMessage` in the `@KafkaListener` — the
+message was received but never turned into the expected object, even
+though the listener method signature, package name, and
+`spring.json.trusted.packages` all looked correct.
+
+**Cause:** Spring Boot's Kafka autoconfiguration defaults **both**
+`spring.kafka.producer.value-serializer` and
+`spring.kafka.consumer.value-deserializer` to plain
+`StringSerializer`/`StringDeserializer` whenever they aren't explicitly
+set — there is no autodetection from the generic type of an injected
+`KafkaTemplate<K,V>` or from a `@KafkaListener` method's parameter type.
+Setting `spring.json.trusted.packages` (consumer side) or disabling type
+headers (producer side) alone does nothing without also switching the
+actual (de)serializer class.
+
+**Rule going forward:** any producer/consumer pair exchanging JSON
+across services must explicitly configure, on the producer:
+`spring.kafka.producer.value-serializer: ...JsonSerializer` plus
+`spring.json.add.type.headers: false` (the consumer lives in a
+different module/package and can't resolve the producer's class name
+from a type header); on the consumer:
+`spring.kafka.consumer.value-deserializer: ...JsonDeserializer` plus
+`spring.json.value.default.type` pointing at the **consumer's own**
+local message class and `spring.json.use.type.headers: false`. Verify
+this the same way as Lessons 8/9: send a real message over a real
+broker end-to-end — a mocked `KafkaTemplate` or a directly-invoked
+`@KafkaListener` method both skip the (de)serialization step entirely
+and would never catch either half of this.
+
 ---
 
 ## Security spec (build this in from Phase 1, not retrofitted)
@@ -509,6 +548,77 @@ run locally, same as Phase 1 — they run in the new
 
 Not yet started: `ms-audit`, `app-vaadin`, `docker-compose.yml`, the
 remaining CI workflows, Dependabot.
+
+### Phase 3 — `ms-audit` + Kafka: DONE (2026-07-22)
+
+Built standalone per build order point 3: `ms-security` publishes a
+`LOGIN_FAILED` event (email attempted, IP, timestamp — never the
+password) to the `audit` Kafka topic on every failed login, both local
+(`AuthService.login` — unknown email, inactive user, Google-only account
+with no password, wrong password all count) and Google (`GoogleLoginService`
+— invalid/malformed id-token, `email` is `null` when the token couldn't
+even be parsed that far). Publishing is best-effort: wrapped in a
+try/catch plus an `.exceptionally()` on the `KafkaTemplate` future, so a
+Kafka outage never breaks the login response itself — verified by
+stopping the Kafka container mid-session and confirming `/login` still
+returned its normal 401. `ms-audit` has no business logic, only a
+`@KafkaListener` persisting into its own `audit_event` Postgres table
+and a single `GET /audit-events` read endpoint (paginated, optional
+`type`/`email` filters). Client IP resolution was extracted out of
+`ms-security`'s `RateLimitFilter` into a shared `ClientIpResolver` rather
+than duplicated. `ms-audit`'s `SecurityConfig`/`GlobalExceptionHandler`
+were written with Lessons 8 and 9 already applied from the start
+(correct `HttpMethod.GET` form, explicit `AccessDeniedException` handler)
+rather than rediscovering either bug a second time.
+
+Decision made with the user before building: `GET /audit-events`
+requires `@PreAuthorize("hasRole('ADMINISTRATOR')")`, a deliberate
+deviation from the "GET endpoints `permitAll()`" rule in the security
+spec — audit records contain emails and IPs of failed login attempts
+(account-enumeration risk), unlike the public profile/catalog data that
+rule was written for in Phase 1. If a future phase adds another
+public-data GET endpoint, don't assume permitAll-by-default anymore;
+decide per endpoint based on what it actually exposes.
+
+Two new bugs were found only during manual end-to-end verification —
+both now Lesson 10 above, and both invisible to mocked/unit tests by
+construction: (1) `ms-security`'s Kafka producer had no
+`value-serializer` configured, so publishing silently failed and was
+swallowed by the best-effort error handling (a good sign the resilience
+design worked, but it also nearly hid a real config bug — worth noting
+that best-effort error handling can mask its own bugs, so the manual
+"confirm the row actually landed in ms-audit" step matters, not just
+"confirm login still returns 401"); (2) `ms-audit`'s Kafka consumer had
+no `value-deserializer` configured either, so once (1) was fixed, the
+raw JSON string still failed to convert into `AuditEventMessage`.
+
+Verified per Lesson 6 (same `docker-java` Testcontainers failure,
+unchanged): three disposable Postgres containers plus a single-node
+KRaft-mode Kafka container (`apache/kafka-native`, no separate
+Zookeeper container needed for this manual workaround — the stack still
+targets Kafka+Zookeeper for real environments, this is just the local
+verification shortcut, same spirit as Lesson 6's Postgres workaround),
+all three apps via `mvn spring-boot:run`. End-to-end: a failed local
+login and a rejected Google login both landed in `ms-audit` with the
+right `type`/`email`/`ip`, no password anywhere in the payload;
+`GET /audit-events` → 401 with no token, 403 with a non-admin token, 200
+with an admin token; Kafka stopped mid-session → `/login` still 401
+(not 500), confirmed by log inspection that the publish failure was
+caught and only logged. A one-off single-node Kafka broker also showed
+transient `NOT_COORDINATOR`/rebalance-retry log noise for a few seconds
+right after startup before self-resolving — expected cold-start
+behavior for a fresh single-broker cluster electing its internal
+`__consumer_offsets` coordinator, not a bug; don't chase it if seen
+again, just wait a few seconds before the first request.
+
+Pure-unit tests (`AuditEventListenerTest`, mapping logic only, no
+broker) run and pass locally without Docker. Testcontainers-backed
+tests (`AuditEventRepositoryIT`, `AuditEventListenerIT` — a real
+produce-over-the-wire test using `org.testcontainers.kafka.KafkaContainer`,
+`AuditEventControllerIT`) were written but not run locally, same as
+every phase so far — they run in the new `.github/workflows/ms-audit-ci.yml`.
+
+Not yet started: `app-vaadin`, `docker-compose.yml`, Dependabot.
 
 At the end of each phase, fold anything newly learned back into this
 file's Lessons section (rule form: symptom → cause → rule), and record
