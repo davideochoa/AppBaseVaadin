@@ -22,7 +22,7 @@ class RateLimitFilterTest {
 
     @BeforeEach
     void setUp() {
-        filter = new RateLimitFilter(new ObjectMapper().findAndRegisterModules());
+        filter = new RateLimitFilter(new ObjectMapper().findAndRegisterModules(), new ClientIpResolver());
         request = mock(HttpServletRequest.class);
         when(request.getRequestURI()).thenReturn("/login");
         when(request.getRemoteAddr()).thenReturn("127.0.0.1");

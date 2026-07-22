@@ -30,9 +30,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final ConcurrentHashMap<String, Bucket> bucketsByIp = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
+    private final ClientIpResolver clientIpResolver;
 
-    public RateLimitFilter(ObjectMapper objectMapper) {
+    public RateLimitFilter(ObjectMapper objectMapper, ClientIpResolver clientIpResolver) {
         this.objectMapper = objectMapper;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @Override
@@ -43,7 +45,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        Bucket bucket = bucketsByIp.computeIfAbsent(clientIp(request), ip -> newBucket());
+        Bucket bucket = bucketsByIp.computeIfAbsent(clientIpResolver.resolve(request), ip -> newBucket());
 
         if (bucket.tryConsume(1)) {
             filterChain.doFilter(request, response);
@@ -60,13 +62,5 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private Bucket newBucket() {
         Bandwidth limit = Bandwidth.classic(CAPACITY, Refill.greedy(CAPACITY, REFILL_PERIOD));
         return Bucket.builder().addLimit(limit).build();
-    }
-
-    private String clientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 }

@@ -6,6 +6,7 @@ import com.appbasevaadin.mssecurity.entity.RefreshToken;
 import com.appbasevaadin.mssecurity.entity.SecurityUser;
 import com.appbasevaadin.mssecurity.exception.InvalidCredentialsException;
 import com.appbasevaadin.mssecurity.exception.InvalidRefreshTokenException;
+import com.appbasevaadin.mssecurity.messaging.AuditEventPublisher;
 import com.appbasevaadin.mssecurity.repository.RefreshTokenRepository;
 import com.appbasevaadin.mssecurity.repository.SecurityUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,13 +39,17 @@ class AuthServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private AuditEventPublisher auditEventPublisher;
+
     private AuthService authService;
 
     private SecurityUser user;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(securityUserRepository, refreshTokenRepository, jwtService, passwordEncoder);
+        authService = new AuthService(securityUserRepository, refreshTokenRepository, jwtService, passwordEncoder,
+                auditEventPublisher);
 
         user = new SecurityUser();
         user.setId(1L);
@@ -64,7 +69,7 @@ class AuthServiceTest {
         when(jwtService.hash("raw-refresh-token")).thenReturn("hashed-refresh-token");
         when(jwtService.getRefreshTokenTtlDays()).thenReturn(7L);
 
-        TokenResponse response = authService.login("jane.doe@example.com", "correct-password");
+        TokenResponse response = authService.login("jane.doe@example.com", "correct-password", "127.0.0.1");
 
         assertThat(response.getAccessToken()).isEqualTo("access-token");
         assertThat(response.getRefreshToken()).isEqualTo("raw-refresh-token");
@@ -75,7 +80,7 @@ class AuthServiceTest {
         when(securityUserRepository.findByEmailIgnoreCase("jane.doe@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("wrong-password", "hashed-password")).thenReturn(false);
 
-        assertThatThrownBy(() -> authService.login("jane.doe@example.com", "wrong-password"))
+        assertThatThrownBy(() -> authService.login("jane.doe@example.com", "wrong-password", "127.0.0.1"))
                 .isInstanceOf(InvalidCredentialsException.class);
     }
 
@@ -83,7 +88,7 @@ class AuthServiceTest {
     void loginWithUnknownEmailThrows() {
         when(securityUserRepository.findByEmailIgnoreCase("ghost@example.com")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> authService.login("ghost@example.com", "whatever"))
+        assertThatThrownBy(() -> authService.login("ghost@example.com", "whatever", "127.0.0.1"))
                 .isInstanceOf(InvalidCredentialsException.class);
     }
 
@@ -92,7 +97,7 @@ class AuthServiceTest {
         user.setPasswordHash(null);
         when(securityUserRepository.findByEmailIgnoreCase("jane.doe@example.com")).thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> authService.login("jane.doe@example.com", "anything"))
+        assertThatThrownBy(() -> authService.login("jane.doe@example.com", "anything", "127.0.0.1"))
                 .isInstanceOf(InvalidCredentialsException.class);
     }
 
