@@ -18,6 +18,11 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${MS_SECURITY_JWKS_URI:http://localhost:8082/.well-known/jwks.json}
 
 management:
   endpoints:
@@ -28,3 +33,7 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+app:
+  cors:
+    allowed-origin: ${APP_VAADIN_ORIGIN:http://localhost:8080}

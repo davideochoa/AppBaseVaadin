@@ -16,6 +16,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @EntityGraph(attributePaths = "userType")
     Optional<User> findById(Long id);
 
+    @EntityGraph(attributePaths = "userType")
+    Optional<User> findByEmailIgnoreCase(String email);
+
     @Query("""
             SELECT u FROM User u
             JOIN FETCH u.userType t
