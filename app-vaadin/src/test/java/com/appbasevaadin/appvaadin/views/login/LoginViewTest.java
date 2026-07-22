@@ -1,0 +1,59 @@
+package com.appbasevaadin.appvaadin.views.login;
+
+import com.appbasevaadin.appvaadin.client.ApiException;
+import com.appbasevaadin.appvaadin.dto.ApiError;
+import com.appbasevaadin.appvaadin.facade.AuthFacade;
+import com.github.mvysny.kaributesting.v10.MockVaadin;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.textfield.EmailField;
+import com.vaadin.flow.component.textfield.PasswordField;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+import static com.github.mvysny.kaributesting.v10.LocatorJ._click;
+import static com.github.mvysny.kaributesting.v10.LocatorJ._get;
+import static com.github.mvysny.kaributesting.v10.LocatorJ._setValue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+
+class LoginViewTest {
+
+    private AuthFacade authFacade;
+    private LoginView loginView;
+
+    @BeforeEach
+    void setUp() {
+        MockVaadin.setup();
+        authFacade = Mockito.mock(AuthFacade.class);
+        loginView = new LoginView(authFacade, "");
+        com.vaadin.flow.component.UI.getCurrent().add(loginView);
+    }
+
+    @AfterEach
+    void tearDown() {
+        MockVaadin.tearDown();
+    }
+
+    @Test
+    void invalidCredentialsShowAnErrorMessageAndDoNotNavigate() {
+        ApiError apiError = new ApiError(LocalDateTime.now(), 401, "UNAUTHORIZED", "Invalid email or password",
+                List.of());
+        doThrow(new ApiException(apiError)).when(authFacade).login(eq("jane@example.com"), eq("wrong"));
+
+        _setValue(_get(loginView, EmailField.class), "jane@example.com");
+        _setValue(_get(loginView, PasswordField.class), "wrong");
+        _click(_get(loginView, Button.class));
+
+        verify(authFacade).login("jane@example.com", "wrong");
+        Span errorMessage = _get(loginView, Span.class);
+        assertThat(errorMessage.isVisible()).isTrue();
+    }
+}

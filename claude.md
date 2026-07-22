@@ -620,6 +620,73 @@ every phase so far — they run in the new `.github/workflows/ms-audit-ci.yml`.
 
 Not yet started: `app-vaadin`, `docker-compose.yml`, Dependabot.
 
+### Phase 4 — `app-vaadin`: IN PROGRESS (session started 2026-07-22, resumed same day after a machine restart)
+
+Built per build order point 4: no DB access, no business logic (see
+Architecture) — `facade` (`AuthFacade`, `UserFacade`, `AuditFacade`)
+delegates straight to `client` (`AuthApiClient`, `UsersApiClient`,
+`AuditApiClient`, each a thin wrapper around a dedicated `RestClient`
+bean from `AppConfig`), no `@Transactional`/`Repository` anywhere in the
+module. `AuthenticatedUser` holds the JWT pair in `VaadinSession` (never
+browser storage, per the security spec), decoding claims locally for UI
+gating only — the real trust boundary stays each microservice's own
+resource-server JWT validation against `ms-security`'s JWKS.
+`AuthInterceptor` (a `ClientHttpRequestInterceptor`) attaches the bearer
+token to outgoing calls and, on a 401, refreshes once via
+`AuthApiClient.refresh` and retries — the "outgoing-call interceptor...
+refreshes it on expiry before retrying" requirement from the security
+spec. `AuthBeforeEnterListener` (wired through
+`AppServiceInitListener`/`VaadinServiceInitListener`) is the route
+guard: unauthenticated → `LoginView`; authenticated hitting `LoginView`
+→ `UserListView`; non-admin hitting `AuditLogView` → `UserListView`.
+
+Views: `LoginView` (email+password, plus a Google Identity Services
+button rendered via `executeJs`/`@ClientCallable` when
+`app.google.client-id` is configured — id-token passthrough straight to
+`AuthApiClient.loginWithGoogle`, no server-side OAuth redirect flow, as
+scoped), `MainLayout` (nav links gated on `AuthenticatedUser.hasRole`,
+an EN/ES `Select<Locale>` that reloads the page on change, logout),
+`UserListView` (lazy paginated `Grid` backed by
+`UserFacade.search`/`DataProvider`, search field in `LAZY`
+value-change mode, create/edit/delete only rendered for admins),
+`UserFormDialog` (maps `ApiError.errors()` field-level validation
+messages back onto the matching form field via `HasValidation`, falls
+back to a form-level error banner for anything unmatched — e.g.
+duplicate-email 409s that don't carry a `field`), `AuditLogView`
+(admin-only per the route guard, filters by `type`/`email`). i18n via
+`SimpleI18NProvider` + `translations.properties`/`translations_es.properties`.
+
+Verified so far, per Lesson 6 (still can't run Testcontainers locally,
+but this module needs none — no DB, so nothing here was ever going to
+depend on that workaround in the first place):
+- `mvn clean compile` and `mvn clean verify` both succeed offline
+  (`-o`), the latter being the exact command the new CI workflow runs.
+- Unit/Karibu tests all pass locally without Docker:
+  `AuthenticatedUserTest` (login/logout/expiry claim decoding against a
+  hand-built fake JWT), `UsersApiClientTest` (`MockRestServiceServer`,
+  covers both a successful paged search and a 400 with field errors
+  mapping into `ApiException`), `LoginViewTest` and `UserListViewTest`
+  (Karibu Testing, `MockVaadin` — cover the invalid-credentials error
+  path and the admin-vs-non-admin visibility of the "new user" button).
+- Added `.github/workflows/app-vaadin-ci.yml`, same pattern as the
+  other three modules' workflows (`paths: app-vaadin/**`, JDK 21,
+  `mvn --batch-mode --update-snapshots clean verify`, upload surefire
+  reports) — confirmed the exact CI command passes locally first.
+
+Not yet done, still blocking calling this phase DONE:
+- **Nothing in `app-vaadin/` has been committed to git yet** — the
+  entire module (plus the new CI workflow) is still untracked. The
+  machine restart that interrupted this phase happened before any
+  commit, so all of the above exists only on disk right now.
+- Manual end-to-end verification (Lesson 6's proven approach: real
+  disposable Postgres/Kafka containers for the 3 microservices via
+  `mvn spring-boot:run`, then drive `app-vaadin` itself at
+  `http://localhost:8080` and exercise the golden path — local login,
+  Google login, CRUD as admin, read-only as non-admin, token refresh on
+  expiry, logout, EN/ES switch) has not been run this session.
+- No `docker-compose.yml`/`.env.example` update or Dependabot config yet
+  — those remain Phase 5 per the build order, not a Phase 4 gap.
+
 At the end of each phase, fold anything newly learned back into this
 file's Lessons section (rule form: symptom → cause → rule), and record
 the full narrative in `claude.md` as before.
