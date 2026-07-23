@@ -3,6 +3,7 @@ package com.appbasevaadin.appvaadin.views.login;
 import com.appbasevaadin.appvaadin.client.ApiException;
 import com.appbasevaadin.appvaadin.dto.ApiError;
 import com.appbasevaadin.appvaadin.facade.AuthFacade;
+import com.appbasevaadin.appvaadin.testutil.KaribuTestSetup;
 import com.github.mvysny.kaributesting.v10.MockVaadin;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Span;
@@ -31,7 +32,7 @@ class LoginViewTest {
 
     @BeforeEach
     void setUp() {
-        MockVaadin.setup();
+        KaribuTestSetup.setupProductionMode();
         authFacade = Mockito.mock(AuthFacade.class);
         loginView = new LoginView(authFacade, "");
         com.vaadin.flow.component.UI.getCurrent().add(loginView);

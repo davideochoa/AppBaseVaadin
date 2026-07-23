@@ -3,6 +3,7 @@ package com.appbasevaadin.appvaadin.views.users;
 import com.appbasevaadin.appvaadin.auth.AuthenticatedUser;
 import com.appbasevaadin.appvaadin.dto.PageResponse;
 import com.appbasevaadin.appvaadin.facade.UserFacade;
+import com.appbasevaadin.appvaadin.testutil.KaribuTestSetup;
 import com.github.mvysny.kaributesting.v10.MockVaadin;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -25,7 +26,7 @@ class UserListViewTest {
 
     @BeforeEach
     void setUp() {
-        MockVaadin.setup();
+        KaribuTestSetup.setupProductionMode();
         userFacade = Mockito.mock(UserFacade.class);
         when(userFacade.search(any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(new PageResponse<>(List.of(), 0, 0, 0, 20));

@@ -1,6 +1,7 @@
 package com.appbasevaadin.appvaadin.auth;
 
 import com.appbasevaadin.appvaadin.dto.TokenResponse;
+import com.appbasevaadin.appvaadin.testutil.KaribuTestSetup;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mvysny.kaributesting.v10.MockVaadin;
 import org.junit.jupiter.api.AfterEach;
@@ -20,7 +21,7 @@ class AuthenticatedUserTest {
 
     @BeforeEach
     void setUp() {
-        MockVaadin.setup();
+        KaribuTestSetup.setupProductionMode();
     }
 
     @AfterEach
