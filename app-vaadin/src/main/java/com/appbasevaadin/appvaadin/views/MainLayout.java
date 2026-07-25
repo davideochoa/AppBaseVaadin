@@ -15,6 +15,7 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.router.RouterLink;
+import com.vaadin.flow.server.VaadinSession;
 
 import java.util.Locale;
 
@@ -43,6 +44,7 @@ public class MainLayout extends AppLayout {
         localeSelect.setValue(UI.getCurrent().getLocale());
         localeSelect.addValueChangeListener(e -> {
             if (e.getValue() != null) {
+                VaadinSession.getCurrent().setAttribute(Locale.class, e.getValue());
                 UI.getCurrent().setLocale(e.getValue());
                 UI.getCurrent().getPage().reload();
             }
