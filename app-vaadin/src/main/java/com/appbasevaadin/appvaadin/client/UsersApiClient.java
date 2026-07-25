@@ -1,0 +1,85 @@
+package com.appbasevaadin.appvaadin.client;
+
+import com.appbasevaadin.appvaadin.dto.PageResponse;
+import com.appbasevaadin.appvaadin.dto.UserRequest;
+import com.appbasevaadin.appvaadin.dto.UserResponse;
+import com.appbasevaadin.appvaadin.dto.UserTypeResponse;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+
+import java.util.List;
+
+@Component
+public class UsersApiClient {
+
+    private final RestClient usersRestClient;
+
+    public UsersApiClient(RestClient usersRestClient) {
+        this.usersRestClient = usersRestClient;
+    }
+
+    public PageResponse<UserResponse> search(String text, Long userTypeId, Boolean active, int page, int size) {
+        return usersRestClient.get()
+                .uri(uriBuilder -> {
+                    uriBuilder.path("/users").queryParam("page", page).queryParam("size", size);
+                    if (text != null && !text.isBlank()) {
+                        uriBuilder.queryParam("text", text);
+                    }
+                    if (userTypeId != null) {
+                        uriBuilder.queryParam("userTypeId", userTypeId);
+                    }
+                    if (active != null) {
+                        uriBuilder.queryParam("active", active);
+                    }
+                    return uriBuilder.build();
+                })
+                .retrieve()
+                .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
+                .body(new ParameterizedTypeReference<PageResponse<UserResponse>>() {
+                });
+    }
+
+    public UserResponse getById(Long id) {
+        return usersRestClient.get()
+                .uri("/users/{id}", id)
+                .retrieve()
+                .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
+                .body(UserResponse.class);
+    }
+
+    public UserResponse create(UserRequest request) {
+        return usersRestClient.post()
+                .uri("/users")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
+                .body(UserResponse.class);
+    }
+
+    public UserResponse update(Long id, UserRequest request) {
+        return usersRestClient.put()
+                .uri("/users/{id}", id)
+                .body(request)
+                .retrieve()
+                .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
+                .body(UserResponse.class);
+    }
+
+    public void delete(Long id) {
+        usersRestClient.delete()
+                .uri("/users/{id}", id)
+                .retrieve()
+                .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
+                .toBodilessEntity();
+    }
+
+    public List<UserTypeResponse> listUserTypes() {
+        return usersRestClient.get()
+                .uri("/user-types")
+                .retrieve()
+                .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
+                .body(new ParameterizedTypeReference<List<UserTypeResponse>>() {
+                });
+    }
+}
