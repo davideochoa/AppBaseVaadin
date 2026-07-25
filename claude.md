@@ -411,6 +411,68 @@ Web Shield exception for Java/Maven/localhost traffic) — confirmed
 resolved 2026-07-24 by re-running the same `HttpsURLConnection` check at
 the start of the next session before assuming anything else changed.
 
+**Addendum found in Phase 5 (2026-07-25):** the host-level fix does
+**not** carry over into a Docker container's own JRE. Running
+`app-vaadin` via `docker compose up` hit the exact same
+`LicenseException: Unable to validate the license, please check your
+internet connection` from `VaadinServlet.verifyLicense`, even though the
+equivalent `mvn spring-boot:run` on the host had worked since the fix.
+Cause: `eclipse-temurin:21-jre` inside the container ships its own
+separate `cacerts` truststore, which never received the Avast root CA
+import (that was applied to the *host* JDK's `cacerts` at
+`C:\Program Files\Java\jdk-21\lib\security\cacerts`, a completely
+different file). Whether Avast intercepts the container's egress
+traffic at all depends on how it hooks the network stack relative to
+Docker Desktop's VM — on this machine it evidently does. **Rule going
+forward:** don't assume a host-level TLS-interception fix (Lesson 12)
+covers containerized JVMs too — treat it as a separate, unverified
+surface until checked. This is a machine-specific environment blocker,
+not a code defect (the same jar had already been verified working via
+`mvn spring-boot:run` post-fix in Phase 4), so it doesn't block
+committing/shipping the `docker-compose.yml` integration itself — just
+document it and move on rather than baking a machine-specific certificate
+into a Dockerfile that other machines/CI would then have to carry too.
+
+### 13. A JVM-based Kafka healthcheck (`kafka-broker-api-versions`) can fail outright in Zookeeper mode, independent of any timeout tuning
+
+**Symptom:** the `kafka` service in `docker-compose.yml` stayed
+`unhealthy` forever, blocking every dependent service that used
+`depends_on: kafka: condition: service_healthy` (`ms-security`,
+`ms-audit`) from starting at all — even though the broker's own logs
+showed a completely normal, successful startup (`KafkaServer started`,
+`Awaiting socket connections on 0.0.0.0:9092`).
+
+**Cause:** the healthcheck was
+`kafka-broker-api-versions --bootstrap-server localhost:9092`, a
+JVM-based CLI tool. Running it manually (outside the healthcheck's 5s
+timeout) showed it doesn't just run slowly — it throws a real exception,
+`RuntimeException: Request METADATA failed on brokers
+List(localhost:9092 (id: -1 rack: null))`, from its legacy
+`BrokerApiVersionsCommand$AdminClient`, even though a plain TCP connect
+to the same port succeeded instantly (`echo > /dev/tcp/localhost/9092`
+returned `OPEN`) and to the advertised listener hostname too
+(`kafka:9092`, confirmed via `getent hosts kafka` + the same `/dev/tcp`
+probe). So this is a bug/incompatibility in the legacy AdminClient this
+tool uses under Zookeeper-mode single-broker Confluent images, not a
+timeout or connectivity problem — increasing `timeout`/`retries` alone
+would never have fixed it.
+
+**Rule going forward:** don't use a JVM-based CLI tool as a Kafka
+service healthcheck in `docker-compose.yml` — it spins up a full JVM per
+check (slow) and, at least in Zookeeper mode with `cp-kafka:7.6.1`, can
+fail outright regardless of broker health. Use a plain TCP probe
+instead: `test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9092'
+|| exit 1"]`. That's all `depends_on: condition: service_healthy`
+actually needs — confirming the broker accepts connections; Spring
+Kafka's own producer/consumer already retry on top of that. Also budget
+real startup time with `start_period`: this single-broker
+Kafka+Zookeeper combo took 60-90s+ to bind its listener before the
+TCP probe could succeed even once, and under the severe CPU contention
+in Phase 5 (see the Phase 5 progress log entry) took over two minutes —
+a bare `interval`/`retries` window sized for "should be up in 10s" will
+flip to `unhealthy` before that, even with a correct healthcheck
+command.
+
 ---
 
 ## Security spec (build this in from Phase 1, not retrofitted)
@@ -913,6 +975,85 @@ and by setting form field values via `javascript_tool` (`element.value =
 ...` + dispatching real `input`/`change` events) instead of simulated
 keystrokes when a reliable exact value was needed for login testing going
 forward on this machine.
+
+### Phase 5 — Integration: DONE (2026-07-26)
+
+Built per build order point 5: `docker-compose.yml` wiring all 4
+modules (3 Postgres containers, one per microservice, plus a shared
+Zookeeper/Kafka pair) together with `.env.example` and
+`.github/dependabot.yml` (maven + docker ecosystems for all four
+module directories, plus github-actions at the repo root). Added one
+`Dockerfile` per module: `ms-users`/`ms-security`/`ms-audit` are plain
+multi-stage `maven:3.9-eclipse-temurin-21` → `eclipse-temurin:21-jre-alpine`
+builds; `app-vaadin`'s final stage deliberately uses
+`eclipse-temurin:21-jre` (not `-alpine`) and runs in Vaadin dev mode,
+since there's no production frontend bundle/profile yet and Vaadin's
+dev-mode Node.js downloader fetches a glibc-linked binary that won't
+run on musl-based Alpine. Every environment variable in
+`docker-compose.yml` was cross-checked one-by-one against each
+module's `application.yml` before running anything (`DB_*_HOST/PORT/
+NAME/USER/PASSWORD`, `MS_SECURITY_JWKS_URI`, `MS_USERS_BASE_URL`,
+`MS_SECURITY_BASE_URL`, `MS_AUDIT_BASE_URL`, `APP_VAADIN_ORIGIN`,
+`AUDIT_TOPIC`, the JWT PEM/TTL vars, `GOOGLE_CLIENT_ID`) — no mismatches
+found, which meant the only real bugs surfaced were at the
+container/orchestration level, not in application config.
+
+Verified via `docker compose build` (all 4 images built cleanly) then
+`docker compose up`, per Lesson 6's philosophy of preferring a real,
+disposable run over anything Testcontainers-shaped on this machine:
+
+- `ms-users`, `ms-security`, `ms-audit`, all 3 Postgres containers, and
+  Kafka all reached healthy/running state.
+- End-to-end smoke test across the real Docker network: bootstrap-admin
+  login against `ms-security` (`admin@local`/`admin123`) issued a valid
+  RS256 access token; that same token, presented to `ms-users`'
+  `GET /users`, returned `200` with the `ADMINISTRATOR` role correctly
+  authorized — confirming the cross-service JWT/JWKS trust boundary
+  (Lesson 4's whole reason for existing) actually holds over a real
+  Docker bridge network, not just `localhost` on one host.
+- `app-vaadin` failed to start in-container on the Vaadin online license
+  check — see the Phase 5 addendum folded into **Lesson 12** above.
+  Environment-specific (this machine's Avast TLS interception not
+  covering the container's own JRE truststore), not a code defect: the
+  same jar was already verified working via `mvn spring-boot:run` in
+  Phase 4. Left unresolved pending a human action (extend the Avast
+  Web Shield exception to Docker Desktop's network path, or obtain a
+  Vaadin offline dev-mode license key) — deliberately not worked around
+  by baking a machine-specific certificate into the Dockerfile, since
+  that would only work on this one machine and would ship a
+  local-only hack to every other clone of the repo/CI.
+
+One real, portable bug was found and fixed during this verification,
+now **Lesson 13** above: the `kafka` service's healthcheck
+(`kafka-broker-api-versions`) failed outright under Zookeeper mode's
+legacy AdminClient, independent of timeout — replaced with a plain TCP
+probe plus a 90s `start_period`.
+
+Also worth recording since it shaped how long this verification took
+(and is a **new, first-time-seen constraint** on this machine, not yet
+a formal Lesson since it doesn't change any code — just a heads-up for
+next time): running all 9 containers at once (several of them JVMs —
+`ms-users`, `ms-security`, `ms-audit`, `app-vaadin`, plus Kafka and
+Zookeeper) put Docker Desktop's VM under severe CPU contention on this
+machine. Confirmed genuinely non-hung (not the Testcontainers/Avast
+class of bug) via repeated `kill -QUIT 1` thread dumps showing the
+JVMs' main threads actively `RUNNABLE` inside ordinary startup work
+(RSA keypair classloading, Hibernate bootstrap, Flyway) rather than
+blocked — just extraordinarily slow: `ms-security` and `ms-audit` each
+took **~19-20 minutes** of wall-clock time to print their own
+`Started ... in N seconds` line (`1137`/`1189` JVM-measured seconds),
+versus the low tens-of-seconds this took in Phase 2/3's one-service-at-
+a-time manual verification. If bringing up the full stack again on this
+machine, expect this and don't mistake slow-but-alive progress (check
+`docker stats` CPU% and/or send `kill -QUIT 1` for a thread dump before
+assuming a hang) for a real failure.
+
+Not yet done: CI-level integration test that actually runs
+`docker compose up` (the 4 per-module CI workflows each test their own
+module in isolation, which is what's scoped/needed — no root-level
+compose smoke-test workflow exists or was requested). `app-vaadin`'s
+containerized startup remains blocked on the human action described
+above.
 
 At the end of each phase, fold anything newly learned back into this
 file's Lessons section (rule form: symptom → cause → rule), and record
