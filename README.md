@@ -12,7 +12,7 @@ another frontend later without touching the microservices.
 | `ms-users`     | User CRUD and user-type catalog, owns its own database                      | ✅ Phase 1 complete |
 | `ms-security`  | Single source of identity: local login + Google OAuth2/OIDC, issues JWTs (RS256) | ✅ Phase 2 complete |
 | `ms-audit`     | Kafka event consumer (`audit` topic), exposes read-only history             | ✅ Phase 3 complete |
-| `app-vaadin`   | Vaadin Flow frontend, no database or business logic of its own              | ⏳ Pending |
+| `app-vaadin`   | Vaadin Flow frontend, no database or business logic of its own              | ✅ Phase 4 complete |
 
 ## Stack
 
@@ -33,9 +33,9 @@ Spring Boot Actuator · Testcontainers + JUnit 5.
    consumer in `ms-audit` (includes `LOGIN_FAILED` on every failed login
    attempt). ✅ **Complete.**
 4. **`app-vaadin`** — consumes the three microservices over REST, no
-   database or business logic of its own, i18n EN/ES.
+   database or business logic of its own, i18n EN/ES. ✅ **Complete.**
 5. **Integration** — full `docker-compose.yml`, per-module CI workflows
-   (`paths:`), Dependabot, final polish.
+   (`paths:`), Dependabot, final polish. ✅ **Complete.**
 
 Full architecture detail, security decisions, and lessons learned
 (bugs already fixed and the rules that keep them from recurring): see
@@ -43,9 +43,39 @@ Full architecture detail, security decisions, and lessons learned
 
 ## Current status
 
-`ms-users`, `ms-security`, and `ms-audit` have all been built and
-manually verified end-to-end against real Postgres databases and a real
-Kafka broker (local login, Google id-token rejection, JWT
-issuing/refresh/revocation, role-gated access, rate limiting, failed
-logins landing in the audit log), each with its own CI workflow
-(`.github/workflows/ms-users-ci.yml`, `ms-security-ci.yml`, `ms-audit-ci.yml`).
+All four modules have been built and manually verified end-to-end
+against real Postgres databases and a real Kafka broker (local login,
+Google id-token rejection, JWT issuing/refresh/revocation, role-gated
+access, rate limiting, failed logins landing in the audit log, full CRUD
+and RBAC through the Vaadin UI, EN/ES switch), each with its own CI
+workflow (`.github/workflows/ms-users-ci.yml`, `ms-security-ci.yml`,
+`ms-audit-ci.yml`, `app-vaadin-ci.yml`).
+
+## Running the full stack
+
+```bash
+cp .env.example .env   # adjust values if needed; local/demo defaults work as-is
+docker compose up --build
+```
+
+On a slow or metered connection (e.g. mobile data), pulling/building 4
+images plus Kafka/Zookeeper is heavy. Two things help:
+- Lower Docker Desktop's `max-concurrent-downloads`/`max-concurrent-uploads`
+  in `~/.docker/daemon.json` (e.g. `2`) so layers don't split the pipe too
+  thin — requires a Docker Desktop restart to take effect.
+- Run compose with `COMPOSE_PARALLEL_LIMIT=1 COMPOSE_HTTP_TIMEOUT=300
+  docker compose up --build` to pull/start services one at a time instead
+  of all at once, and tolerate slower responses without the CLI timing out.
+
+Once every service is up:
+
+- `app-vaadin` (the app itself): http://localhost:8080
+- `ms-users` Swagger UI: http://localhost:8081/swagger-ui.html
+- `ms-security` Swagger UI: http://localhost:8082/swagger-ui.html
+- `ms-audit` Swagger UI: http://localhost:8083/swagger-ui.html
+
+Bootstrap admin login (unless `BOOTSTRAP_ADMIN_PASSWORD` was set in
+`.env`): `admin@local` / `admin123`.
+
+`docker compose down` keeps the Postgres data volumes; add `-v` to wipe
+them and start from a clean seed on the next `up`.
