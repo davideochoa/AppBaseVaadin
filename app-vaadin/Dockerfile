@@ -11,7 +11,7 @@ RUN mvn -B clean package -DskipTests
 # internet access to fetch Node the first time.
 # Not alpine here: Vaadin's dev-mode downloader fetches an official
 # glibc-linked Node.js binary, which won't run on musl-based Alpine.
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 WORKDIR /app
 COPY --from=build /app/target/app-vaadin-0.1.0-SNAPSHOT.jar app.jar
 EXPOSE 8080
