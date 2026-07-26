@@ -13,6 +13,9 @@
 # Maven build output
 target/
 
+# Environment variables (real secrets go here, never commit)
+.env
+
 # Package Files #
 *.jar
 *.war
