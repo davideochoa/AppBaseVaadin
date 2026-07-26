@@ -1,0 +1,16 @@
+server:
+  port: ${SERVER_PORT:8090}
+
+spring:
+  application:
+    name: app-vaadin-dummy
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
