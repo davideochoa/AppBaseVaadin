@@ -1048,12 +1048,27 @@ machine, expect this and don't mistake slow-but-alive progress (check
 `docker stats` CPU% and/or send `kill -QUIT 1` for a thread dump before
 assuming a hang) for a real failure.
 
-Not yet done: CI-level integration test that actually runs
-`docker compose up` (the 4 per-module CI workflows each test their own
-module in isolation, which is what's scoped/needed — no root-level
-compose smoke-test workflow exists or was requested). `app-vaadin`'s
-containerized startup remains blocked on the human action described
-above.
+**Update (2026-07-26):** added `.github/workflows/integration-ci.yml`, a
+root-level workflow (triggered on any of the 4 modules, `docker-compose.yml`,
+or `.env.example` changing) that runs the exact smoke test performed
+manually above on a GitHub Actions runner: `docker compose build` →
+`docker compose up -d` → poll `ms-users`/`ms-security`/`ms-audit` health
+endpoints and the JWKS endpoint → bootstrap-admin login against
+`ms-security` → that token against `GET /users` on `ms-users`, asserting
+`200` → dump all service logs (always, for debugging a red run) →
+`docker compose down -v`. Unlike this dev machine, GitHub's runners have
+no Avast-style TLS interception, so `app-vaadin`'s Vaadin online license
+check is expected to succeed there — this workflow is the first real
+check of whether `app-vaadin` starts cleanly in a container at all,
+something this machine currently can't confirm (see the Lesson 12
+addendum above). Not yet actually run on GitHub Actions to confirm green
+(would need a push/PR to trigger it) — first CI run against this
+workflow is the next thing to check, not assume.
+
+`app-vaadin`'s containerized startup on *this machine* remains blocked
+on the human action described above (extend the Avast exception to
+Docker Desktop, or get a Vaadin offline license key) — unrelated to
+whether the new CI workflow passes on GitHub's runners.
 
 At the end of each phase, fold anything newly learned back into this
 file's Lessons section (rule form: symptom → cause → rule), and record
