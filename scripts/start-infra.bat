@@ -65,3 +65,4 @@ if errorlevel 1 (
     )
 )
 goto :eof
+pause
