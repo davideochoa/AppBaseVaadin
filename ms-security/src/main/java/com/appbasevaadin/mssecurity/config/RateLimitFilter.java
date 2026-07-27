@@ -1,7 +1,5 @@
 package com.appbasevaadin.mssecurity.config;
 
-import com.appbasevaadin.mssecurity.exception.ApiError;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
@@ -10,14 +8,11 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,11 +24,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final Duration REFILL_PERIOD = Duration.ofMinutes(1);
 
     private final ConcurrentHashMap<String, Bucket> bucketsByIp = new ConcurrentHashMap<>();
-    private final ObjectMapper objectMapper;
+    private final SecurityErrorResponseWriter errorResponseWriter;
     private final ClientIpResolver clientIpResolver;
 
-    public RateLimitFilter(ObjectMapper objectMapper, ClientIpResolver clientIpResolver) {
-        this.objectMapper = objectMapper;
+    public RateLimitFilter(SecurityErrorResponseWriter errorResponseWriter, ClientIpResolver clientIpResolver) {
+        this.errorResponseWriter = errorResponseWriter;
         this.clientIpResolver = clientIpResolver;
     }
 
@@ -52,11 +47,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        ApiError error = new ApiError(LocalDateTime.now(), HttpStatus.TOO_MANY_REQUESTS.value(),
-                "RATE_LIMITED", "Too many requests — please try again later", List.of());
-        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        objectMapper.writeValue(response.getWriter(), error);
+        errorResponseWriter.write(response, HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMITED",
+                "Too many requests — please try again later");
     }
 
     private Bucket newBucket() {

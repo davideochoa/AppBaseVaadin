@@ -1,9 +1,10 @@
 package com.appbasevaadin.mssecurity.client;
 
-import com.appbasevaadin.mssecurity.client.dto.UserTypeDto;
 import com.appbasevaadin.mssecurity.client.dto.UserDto;
-import org.springframework.beans.factory.annotation.Value;
+import com.appbasevaadin.mssecurity.client.dto.UserTypeDto;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
@@ -14,8 +15,8 @@ public class UsersClient {
 
     private final RestClient restClient;
 
-    public UsersClient(@Value("${app.clients.ms-users-base-url}") String msUsersBaseUrl) {
-        this.restClient = RestClient.builder().baseUrl(msUsersBaseUrl).build();
+    public UsersClient(RestClient usersRestClient) {
+        this.restClient = usersRestClient;
     }
 
     public Optional<UserDto> findByEmail(String email) {
@@ -25,7 +26,7 @@ public class UsersClient {
                     .retrieve()
                     .body(UserDto.class);
             return Optional.ofNullable(user);
-        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+        } catch (HttpClientErrorException.NotFound e) {
             return Optional.empty();
         }
     }
@@ -42,7 +43,7 @@ public class UsersClient {
         return restClient.get()
                 .uri("/user-types")
                 .retrieve()
-                .body(new org.springframework.core.ParameterizedTypeReference<List<UserTypeDto>>() {
+                .body(new ParameterizedTypeReference<List<UserTypeDto>>() {
                 });
     }
 

@@ -1,9 +1,12 @@
 package com.appbasevaadin.msusers.dto;
 
-import com.appbasevaadin.msusers.entity.UserType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+/**
+ * Plain response payload — mapping from {@code UserType} lives in
+ * {@link com.appbasevaadin.msusers.mapper.UserTypeMapper}, not here, so this class stays a pure data holder.
+ */
 @Getter
 @AllArgsConstructor
 public class UserTypeResponse {
@@ -11,8 +14,5 @@ public class UserTypeResponse {
     private final Long id;
     private final String name;
     private final String description;
-
-    public static UserTypeResponse from(UserType userType) {
-        return new UserTypeResponse(userType.getId(), userType.getName(), userType.getDescription());
-    }
+    private final boolean active;
 }
