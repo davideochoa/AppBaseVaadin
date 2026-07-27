@@ -3,6 +3,7 @@ package com.appbasevaadin.appvaadin.client;
 import com.appbasevaadin.appvaadin.dto.PageResponse;
 import com.appbasevaadin.appvaadin.dto.UserRequest;
 import com.appbasevaadin.appvaadin.dto.UserResponse;
+import com.appbasevaadin.appvaadin.dto.UserTypeRequest;
 import com.appbasevaadin.appvaadin.dto.UserTypeResponse;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -48,6 +49,14 @@ public class UsersApiClient {
                 .body(UserResponse.class);
     }
 
+    public UserResponse getByEmail(String email) {
+        return usersRestClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/users/by-email").queryParam("email", email).build())
+                .retrieve()
+                .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
+                .body(UserResponse.class);
+    }
+
     public UserResponse create(UserRequest request) {
         return usersRestClient.post()
                 .uri("/users")
@@ -66,14 +75,6 @@ public class UsersApiClient {
                 .body(UserResponse.class);
     }
 
-    public void delete(Long id) {
-        usersRestClient.delete()
-                .uri("/users/{id}", id)
-                .retrieve()
-                .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
-                .toBodilessEntity();
-    }
-
     public List<UserTypeResponse> listUserTypes() {
         return usersRestClient.get()
                 .uri("/user-types")
@@ -81,5 +82,23 @@ public class UsersApiClient {
                 .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
                 .body(new ParameterizedTypeReference<List<UserTypeResponse>>() {
                 });
+    }
+
+    public UserTypeResponse createUserType(UserTypeRequest request) {
+        return usersRestClient.post()
+                .uri("/user-types")
+                .body(request)
+                .retrieve()
+                .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
+                .body(UserTypeResponse.class);
+    }
+
+    public UserTypeResponse updateUserType(Long id, UserTypeRequest request) {
+        return usersRestClient.put()
+                .uri("/user-types/{id}", id)
+                .body(request)
+                .retrieve()
+                .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
+                .body(UserTypeResponse.class);
     }
 }

@@ -1,11 +1,15 @@
 package com.appbasevaadin.msaudit.dto;
 
-import com.appbasevaadin.msaudit.entity.AuditEvent;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 
+/**
+ * Plain response payload — mapping from {@code AuditEvent} lives in
+ * {@link com.appbasevaadin.msaudit.mapper.AuditEventMapper}, not here, so this class stays a pure
+ * data holder.
+ */
 @Getter
 @AllArgsConstructor
 public class AuditEventResponse {
@@ -16,15 +20,4 @@ public class AuditEventResponse {
     private final String ipAddress;
     private final LocalDateTime occurredAt;
     private final LocalDateTime receivedAt;
-
-    public static AuditEventResponse from(AuditEvent event) {
-        return new AuditEventResponse(
-                event.getId(),
-                event.getType(),
-                event.getEmail(),
-                event.getIpAddress(),
-                event.getOccurredAt(),
-                event.getReceivedAt()
-        );
-    }
 }

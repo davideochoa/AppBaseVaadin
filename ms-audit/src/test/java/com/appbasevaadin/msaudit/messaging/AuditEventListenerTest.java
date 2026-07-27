@@ -1,6 +1,7 @@
 package com.appbasevaadin.msaudit.messaging;
 
 import com.appbasevaadin.msaudit.entity.AuditEvent;
+import com.appbasevaadin.msaudit.mapper.AuditEventMapper;
 import com.appbasevaadin.msaudit.repository.AuditEventRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,7 +22,7 @@ class AuditEventListenerTest {
 
     @Test
     void onMessagePersistsAnAuditEventWithTheSameFields() {
-        AuditEventListener listener = new AuditEventListener(auditEventRepository);
+        AuditEventListener listener = new AuditEventListener(auditEventRepository, new AuditEventMapper());
         LocalDateTime occurredAt = LocalDateTime.now();
         AuditEventMessage message = new AuditEventMessage("LOGIN_FAILED", "jane.doe@example.com",
                 "203.0.113.7", occurredAt);
@@ -40,7 +41,7 @@ class AuditEventListenerTest {
 
     @Test
     void onMessageWithNullEmailIsPersistedAsIs() {
-        AuditEventListener listener = new AuditEventListener(auditEventRepository);
+        AuditEventListener listener = new AuditEventListener(auditEventRepository, new AuditEventMapper());
         AuditEventMessage message = new AuditEventMessage("LOGIN_FAILED", null, "203.0.113.7", LocalDateTime.now());
 
         listener.onMessage(message);

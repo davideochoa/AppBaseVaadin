@@ -1,19 +1,18 @@
 package com.appbasevaadin.appvaadin.views.users;
 
 import com.appbasevaadin.appvaadin.auth.AuthenticatedUser;
-import com.appbasevaadin.appvaadin.client.ApiException;
 import com.appbasevaadin.appvaadin.dto.PageResponse;
+import com.appbasevaadin.appvaadin.dto.UserRequest;
 import com.appbasevaadin.appvaadin.dto.UserResponse;
 import com.appbasevaadin.appvaadin.facade.UserFacade;
 import com.appbasevaadin.appvaadin.views.MainLayout;
+import com.appbasevaadin.appvaadin.views.support.ActiveToggleSupport;
+import com.appbasevaadin.appvaadin.views.support.SearchFieldSupport;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.data.provider.DataProvider;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
@@ -42,16 +41,11 @@ public class UserListView extends VerticalLayout {
     }
 
     private HorizontalLayout buildToolbar() {
-        TextField search = new TextField();
-        search.setPlaceholder(getTranslation("users.search"));
-        search.setClearButtonVisible(true);
-        search.setValueChangeMode(com.vaadin.flow.data.value.ValueChangeMode.LAZY);
-        search.addValueChangeListener(e -> {
-            searchText = e.getValue();
-            grid.getDataProvider().refreshAll();
-        });
-
-        HorizontalLayout toolbar = new HorizontalLayout(search);
+        HorizontalLayout toolbar = new HorizontalLayout(
+                SearchFieldSupport.buildFilterField(getTranslation("users.search"), value -> {
+                    searchText = value;
+                    grid.getDataProvider().refreshAll();
+                }));
 
         if (isAdmin) {
             Button newUserButton = new Button(getTranslation("users.new"), e -> openForm(null));
@@ -67,11 +61,13 @@ public class UserListView extends VerticalLayout {
         grid.addColumn(UserResponse::email).setHeader(getTranslation("users.email"));
         grid.addColumn(user -> user.userType() != null ? user.userType().name() : "")
                 .setHeader(getTranslation("users.type"));
-        grid.addColumn(user -> user.active() ? getTranslation("common.yes") : getTranslation("common.no"))
-                .setHeader(getTranslation("users.active"));
 
         if (isAdmin) {
+            grid.addComponentColumn(this::buildActiveToggle).setHeader(getTranslation("users.active"));
             grid.addComponentColumn(this::buildActionsColumn).setHeader("");
+        } else {
+            grid.addColumn(user -> user.active() ? getTranslation("common.yes") : getTranslation("common.no"))
+                    .setHeader(getTranslation("users.active"));
         }
 
         grid.setSizeFull();
@@ -81,10 +77,19 @@ public class UserListView extends VerticalLayout {
         return grid;
     }
 
+    private Checkbox buildActiveToggle(UserResponse user) {
+        return ActiveToggleSupport.buildToggle(user.active(), active -> {
+            UserRequest request = new UserRequest(user.firstName(), user.lastName(), user.email(),
+                    user.userType().id(), active);
+            ActiveToggleSupport.persistAndRefresh(
+                    () -> userFacade.update(user.id(), request),
+                    () -> grid.getDataProvider().refreshAll());
+        });
+    }
+
     private HorizontalLayout buildActionsColumn(UserResponse user) {
         Button edit = new Button(getTranslation("users.edit"), e -> openForm(user));
-        Button delete = new Button(getTranslation("users.delete"), e -> confirmAndDelete(user));
-        return new HorizontalLayout(edit, delete);
+        return new HorizontalLayout(edit);
     }
 
     private Stream<UserResponse> fetchPage(int offset, int limit) {
@@ -104,14 +109,5 @@ public class UserListView extends VerticalLayout {
         UserFormDialog dialog = new UserFormDialog(userFacade, userFacade.listUserTypes(), existingUser,
                 () -> grid.getDataProvider().refreshAll());
         dialog.open();
-    }
-
-    private void confirmAndDelete(UserResponse user) {
-        try {
-            userFacade.delete(user.id());
-            grid.getDataProvider().refreshAll();
-        } catch (ApiException e) {
-            Notification.show(e.getApiError() != null ? e.getApiError().message() : e.getMessage());
-        }
     }
 }

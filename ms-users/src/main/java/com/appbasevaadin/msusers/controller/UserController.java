@@ -2,6 +2,7 @@ package com.appbasevaadin.msusers.controller;
 
 import com.appbasevaadin.msusers.dto.UserRequest;
 import com.appbasevaadin.msusers.dto.UserResponse;
+import com.appbasevaadin.msusers.mapper.UserMapper;
 import com.appbasevaadin.msusers.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -24,26 +25,28 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserService userService;
+    private final UserMapper userMapper;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, UserMapper userMapper) {
         this.userService = userService;
+        this.userMapper = userMapper;
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRATOR')")
     public ResponseEntity<UserResponse> create(@Valid @RequestBody UserRequest request) {
-        UserResponse response = UserResponse.from(userService.create(request));
+        UserResponse response = userMapper.toResponse(userService.create(request));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/{id}")
     public UserResponse getById(@PathVariable Long id) {
-        return UserResponse.from(userService.getById(id));
+        return userMapper.toResponse(userService.getById(id));
     }
 
     @GetMapping("/by-email")
     public UserResponse getByEmail(@RequestParam String email) {
-        return UserResponse.from(userService.getByEmail(email));
+        return userMapper.toResponse(userService.getByEmail(email));
     }
 
     @GetMapping
@@ -52,13 +55,13 @@ public class UserController {
                                       @RequestParam(required = false) Boolean active,
                                       Pageable pageable) {
         return userService.search(text, userTypeId, active, pageable)
-                .map(UserResponse::from);
+                .map(userMapper::toResponse);
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRATOR')")
     public UserResponse update(@PathVariable Long id, @Valid @RequestBody UserRequest request) {
-        return UserResponse.from(userService.update(id, request));
+        return userMapper.toResponse(userService.update(id, request));
     }
 
     @DeleteMapping("/{id}")

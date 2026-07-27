@@ -5,6 +5,7 @@ import com.appbasevaadin.appvaadin.dto.ApiError;
 import com.appbasevaadin.appvaadin.dto.PageResponse;
 import com.appbasevaadin.appvaadin.dto.UserRequest;
 import com.appbasevaadin.appvaadin.dto.UserResponse;
+import com.appbasevaadin.appvaadin.dto.UserTypeRequest;
 import com.appbasevaadin.appvaadin.dto.UserTypeResponse;
 import org.springframework.stereotype.Component;
 
@@ -24,18 +25,19 @@ import java.util.concurrent.atomic.AtomicLong;
 @Component
 public class UserFacade {
 
-    private static final List<UserTypeResponse> USER_TYPES = List.of(
-            new UserTypeResponse(1L, "Administrator", "Full access to manage users"),
-            new UserTypeResponse(2L, "User", "Standard, non-administrative access"));
-
     private final List<UserResponse> users = new CopyOnWriteArrayList<>();
+    private final List<UserTypeResponse> userTypes = new CopyOnWriteArrayList<>();
     private final AtomicLong idSequence = new AtomicLong();
+    private final AtomicLong userTypeIdSequence = new AtomicLong();
 
     public UserFacade() {
         seed();
     }
 
     private void seed() {
+        createUserType(new UserTypeRequest("Administrator", "Full access to manage users", true));
+        createUserType(new UserTypeRequest("User", "Standard, non-administrative access", true));
+
         create(new UserRequest("Ada", "Lovelace", "ada.lovelace@example.com", 1L, true));
         create(new UserRequest("Grace", "Hopper", "grace.hopper@example.com", 2L, true));
         create(new UserRequest("Alan", "Turing", "alan.turing@example.com", 2L, true));
@@ -63,6 +65,12 @@ public class UserFacade {
                 .orElseThrow(() -> new ApiException(notFound(id)));
     }
 
+    public UserResponse getByEmail(String email) {
+        return users.stream().filter(u -> u.email().equalsIgnoreCase(email)).findFirst()
+                .orElseThrow(() -> new ApiException(new ApiError(LocalDateTime.now(), 404, "NOT_FOUND",
+                        "User " + email + " not found", List.of())));
+    }
+
     public synchronized UserResponse create(UserRequest request) {
         validate(request);
         assertEmailAvailable(request.email(), null);
@@ -85,15 +93,26 @@ public class UserFacade {
         return updated;
     }
 
-    public synchronized void delete(Long id) {
-        int index = indexOf(id);
-        UserResponse existing = users.get(index);
-        users.set(index, new UserResponse(existing.id(), existing.firstName(), existing.lastName(),
-                existing.email(), false, existing.createdAt(), existing.userType()));
+    public List<UserTypeResponse> listUserTypes() {
+        return List.copyOf(userTypes);
     }
 
-    public List<UserTypeResponse> listUserTypes() {
-        return USER_TYPES;
+    public synchronized UserTypeResponse createUserType(UserTypeRequest request) {
+        validate(request);
+        UserTypeResponse created = new UserTypeResponse(userTypeIdSequence.incrementAndGet(), request.name(),
+                request.description(), request.active() == null || request.active());
+        userTypes.add(created);
+        return created;
+    }
+
+    public synchronized UserTypeResponse updateUserType(Long id, UserTypeRequest request) {
+        validate(request);
+        int index = userTypeIndexOf(id);
+        UserTypeResponse existing = userTypes.get(index);
+        UserTypeResponse updated = new UserTypeResponse(existing.id(), request.name(), request.description(),
+                request.active() == null ? existing.active() : request.active());
+        userTypes.set(index, updated);
+        return updated;
     }
 
     private PageResponse<UserResponse> paginate(List<UserResponse> filtered, int page, int size) {
@@ -114,8 +133,17 @@ public class UserFacade {
     }
 
     private UserTypeResponse resolveUserType(Long userTypeId) {
-        return USER_TYPES.stream().filter(t -> t.id().equals(userTypeId)).findFirst()
-                .orElse(USER_TYPES.get(USER_TYPES.size() - 1));
+        return userTypes.stream().filter(t -> t.id().equals(userTypeId)).findFirst()
+                .orElse(userTypes.get(userTypes.size() - 1));
+    }
+
+    private int userTypeIndexOf(Long id) {
+        for (int i = 0; i < userTypes.size(); i++) {
+            if (userTypes.get(i).id().equals(id)) {
+                return i;
+            }
+        }
+        throw new ApiException(userTypeNotFound(id));
     }
 
     private void assertEmailAvailable(String email, Long excludingId) {
@@ -144,11 +172,22 @@ public class UserFacade {
         }
     }
 
+    private void validate(UserTypeRequest request) {
+        if (isBlank(request.name())) {
+            throw new ApiException(new ApiError(LocalDateTime.now(), 400, "VALIDATION", "Validation failed",
+                    List.of(new ApiError.FieldError("name", "must not be blank"))));
+        }
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
 
     private ApiError notFound(Long id) {
         return new ApiError(LocalDateTime.now(), 404, "NOT_FOUND", "User " + id + " not found", List.of());
+    }
+
+    private ApiError userTypeNotFound(Long id) {
+        return new ApiError(LocalDateTime.now(), 404, "NOT_FOUND", "User type " + id + " not found", List.of());
     }
 }

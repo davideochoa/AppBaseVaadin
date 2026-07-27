@@ -1,6 +1,7 @@
 package com.appbasevaadin.msaudit.controller;
 
 import com.appbasevaadin.msaudit.dto.AuditEventResponse;
+import com.appbasevaadin.msaudit.mapper.AuditEventMapper;
 import com.appbasevaadin.msaudit.service.AuditEventService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,9 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuditEventController {
 
     private final AuditEventService auditEventService;
+    private final AuditEventMapper auditEventMapper;
 
-    public AuditEventController(AuditEventService auditEventService) {
+    public AuditEventController(AuditEventService auditEventService, AuditEventMapper auditEventMapper) {
         this.auditEventService = auditEventService;
+        this.auditEventMapper = auditEventMapper;
     }
 
     @GetMapping
@@ -26,6 +29,6 @@ public class AuditEventController {
                                             @RequestParam(required = false) String email,
                                             Pageable pageable) {
         return auditEventService.search(type, email, pageable)
-                .map(AuditEventResponse::from);
+                .map(auditEventMapper::toResponse);
     }
 }

@@ -28,4 +28,7 @@ public class UserType {
 
     @Column(name = "description", columnDefinition = "varchar(255)")
     private String description;
+
+    @Column(name = "active", nullable = false)
+    private boolean active = true;
 }

@@ -4,11 +4,10 @@ import com.appbasevaadin.appvaadin.dto.AuditEventResponse;
 import com.appbasevaadin.appvaadin.dto.PageResponse;
 import com.appbasevaadin.appvaadin.facade.AuditFacade;
 import com.appbasevaadin.appvaadin.views.MainLayout;
+import com.appbasevaadin.appvaadin.views.support.SearchFieldSupport;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
@@ -36,21 +35,12 @@ public class AuditLogView extends VerticalLayout {
     }
 
     private HorizontalLayout buildToolbar() {
-        TextField typeField = new TextField();
-        typeField.setPlaceholder(getTranslation("audit.type"));
-        typeField.setClearButtonVisible(true);
-        typeField.setValueChangeMode(ValueChangeMode.LAZY);
-        typeField.addValueChangeListener(e -> {
-            typeFilter = e.getValue();
+        var typeField = SearchFieldSupport.buildFilterField(getTranslation("audit.type"), value -> {
+            typeFilter = value;
             grid.getDataProvider().refreshAll();
         });
-
-        TextField emailField = new TextField();
-        emailField.setPlaceholder(getTranslation("audit.email"));
-        emailField.setClearButtonVisible(true);
-        emailField.setValueChangeMode(ValueChangeMode.LAZY);
-        emailField.addValueChangeListener(e -> {
-            emailFilter = e.getValue();
+        var emailField = SearchFieldSupport.buildFilterField(getTranslation("audit.email"), value -> {
+            emailFilter = value;
             grid.getDataProvider().refreshAll();
         });
 

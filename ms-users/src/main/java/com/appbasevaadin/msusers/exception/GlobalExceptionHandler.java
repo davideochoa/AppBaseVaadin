@@ -24,16 +24,12 @@ public class GlobalExceptionHandler {
         List<ApiError.FieldError> errors = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> new ApiError.FieldError(fe.getField(), fe.getDefaultMessage()))
                 .toList();
-        ApiError error = new ApiError(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(),
-                "VALIDATION", "The submitted data is invalid", errors);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "VALIDATION", "The submitted data is invalid", errors);
     }
 
     @ExceptionHandler({UserNotFoundException.class, UserTypeNotFoundException.class})
     public ResponseEntity<ApiError> handleNotFound(RuntimeException ex) {
-        ApiError error = new ApiError(LocalDateTime.now(), HttpStatus.NOT_FOUND.value(),
-                "NOT_FOUND", ex.getMessage(), List.of());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", ex.getMessage(), List.of());
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -42,24 +38,27 @@ public class GlobalExceptionHandler {
         // It must be handled here explicitly: DispatcherServlet resolves @ExceptionHandlers
         // before the exception can propagate to Spring Security's ExceptionTranslationFilter,
         // so without this the catch-all handler below would swallow it as a 500.
-        ApiError error = new ApiError(LocalDateTime.now(), HttpStatus.FORBIDDEN.value(),
-                "FORBIDDEN", "You do not have permission to access this resource", List.of());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN",
+                "You do not have permission to access this resource", List.of());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
         log.warn("Data integrity violation", ex);
-        ApiError error = new ApiError(LocalDateTime.now(), HttpStatus.CONFLICT.value(),
-                "DATA_CONFLICT", "The resource already exists or violates a data constraint", List.of());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+        return buildErrorResponse(HttpStatus.CONFLICT, "DATA_CONFLICT",
+                "The resource already exists or violates a data constraint", List.of());
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGeneric(Exception ex) {
         log.error("Unhandled error", ex);
-        ApiError error = new ApiError(LocalDateTime.now(), HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "INTERNAL_ERROR", "An unexpected error occurred", List.of());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
+                "An unexpected error occurred", List.of());
+    }
+
+    private ResponseEntity<ApiError> buildErrorResponse(HttpStatus status, String code, String message,
+                                                          List<ApiError.FieldError> errors) {
+        ApiError error = new ApiError(LocalDateTime.now(), status.value(), code, message, errors);
+        return ResponseEntity.status(status).body(error);
     }
 }

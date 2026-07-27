@@ -4,6 +4,7 @@ import com.appbasevaadin.appvaadin.client.UsersApiClient;
 import com.appbasevaadin.appvaadin.dto.PageResponse;
 import com.appbasevaadin.appvaadin.dto.UserRequest;
 import com.appbasevaadin.appvaadin.dto.UserResponse;
+import com.appbasevaadin.appvaadin.dto.UserTypeRequest;
 import com.appbasevaadin.appvaadin.dto.UserTypeResponse;
 import org.springframework.stereotype.Component;
 
@@ -26,6 +27,10 @@ public class UserFacade {
         return usersApiClient.getById(id);
     }
 
+    public UserResponse getByEmail(String email) {
+        return usersApiClient.getByEmail(email);
+    }
+
     public UserResponse create(UserRequest request) {
         return usersApiClient.create(request);
     }
@@ -34,11 +39,15 @@ public class UserFacade {
         return usersApiClient.update(id, request);
     }
 
-    public void delete(Long id) {
-        usersApiClient.delete(id);
-    }
-
     public List<UserTypeResponse> listUserTypes() {
         return usersApiClient.listUserTypes();
+    }
+
+    public UserTypeResponse createUserType(UserTypeRequest request) {
+        return usersApiClient.createUserType(request);
+    }
+
+    public UserTypeResponse updateUserType(Long id, UserTypeRequest request) {
+        return usersApiClient.updateUserType(id, request);
     }
 }

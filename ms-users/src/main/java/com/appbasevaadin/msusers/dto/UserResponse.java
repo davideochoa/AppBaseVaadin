@@ -1,11 +1,14 @@
 package com.appbasevaadin.msusers.dto;
 
-import com.appbasevaadin.msusers.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 
+/**
+ * Plain response payload — mapping from {@code User} lives in {@link com.appbasevaadin.msusers.mapper.UserMapper},
+ * not here, so this class stays a pure data holder.
+ */
 @Getter
 @AllArgsConstructor
 public class UserResponse {
@@ -17,16 +20,4 @@ public class UserResponse {
     private final boolean active;
     private final LocalDateTime createdAt;
     private final UserTypeResponse userType;
-
-    public static UserResponse from(User user) {
-        return new UserResponse(
-                user.getId(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getEmail(),
-                user.isActive(),
-                user.getCreatedAt(),
-                UserTypeResponse.from(user.getUserType())
-        );
-    }
 }
