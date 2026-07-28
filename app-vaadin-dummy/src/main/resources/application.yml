@@ -14,3 +14,10 @@ management:
 app:
   google:
     client-id: ${GOOGLE_CLIENT_ID:}
+  # Mock, offline credentials for this standalone demo module only - it has no real backend.
+  # Override via env vars if this ever needs to be shared beyond a single local machine.
+  demo:
+    admin-email: ${DEMO_ADMIN_EMAIL:admin@local}
+    admin-password: ${DEMO_ADMIN_PASSWORD:admin123}
+    user-email: ${DEMO_USER_EMAIL:user@local}
+    user-password: ${DEMO_USER_PASSWORD:user123}

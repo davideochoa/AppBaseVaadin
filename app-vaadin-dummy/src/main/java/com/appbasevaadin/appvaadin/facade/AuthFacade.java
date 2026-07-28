@@ -5,6 +5,9 @@ import com.appbasevaadin.appvaadin.client.ApiException;
 import com.appbasevaadin.appvaadin.dto.ApiError;
 import com.appbasevaadin.appvaadin.dto.TokenResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -18,25 +21,36 @@ import java.util.UUID;
 /**
  * Stands in for the real AuthApiClient + ms-security backend. Accepts a couple of fixed demo
  * accounts and mints a self-contained, unsigned "JWT" so {@link AuthenticatedUser}'s local claim
- * decoding keeps working unchanged - there is no signature to actually verify here.
+ * decoding keeps working unchanged - there is no signature to actually verify here. This module
+ * has no real backend and is not part of any deployment (no Dockerfile, not in docker-compose.yml
+ * or CI); if that ever changes, this class needs a real ms-security-backed implementation instead.
  */
 @Component
 public class AuthFacade {
 
-    private static final List<DemoAccount> DEMO_ACCOUNTS = List.of(
-            new DemoAccount("admin@local", "admin123", "ADMINISTRATOR"),
-            new DemoAccount("user@local", "user123", "USER"));
+    private static final Logger log = LoggerFactory.getLogger(AuthFacade.class);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final AuthenticatedUser authenticatedUser;
+    private final List<DemoAccount> demoAccounts;
 
-    public AuthFacade(AuthenticatedUser authenticatedUser) {
+    public AuthFacade(AuthenticatedUser authenticatedUser,
+                       @Value("${app.demo.admin-email:admin@local}") String adminEmail,
+                       @Value("${app.demo.admin-password:admin123}") String adminPassword,
+                       @Value("${app.demo.user-email:user@local}") String userEmail,
+                       @Value("${app.demo.user-password:user123}") String userPassword) {
         this.authenticatedUser = authenticatedUser;
+        this.demoAccounts = List.of(
+                new DemoAccount(adminEmail, adminPassword, "ADMINISTRATOR"),
+                new DemoAccount(userEmail, userPassword, "USER"));
+        log.warn("app-vaadin-dummy is running with mock, offline authentication (fixed demo "
+                + "accounts, unsigned tokens, no real ms-security backend). Never point this "
+                + "module at a shared or production environment.");
     }
 
     public void login(String email, String password) {
-        DemoAccount account = DEMO_ACCOUNTS.stream()
+        DemoAccount account = demoAccounts.stream()
                 .filter(a -> a.email().equalsIgnoreCase(email) && a.password().equals(password))
                 .findFirst()
                 .orElseThrow(() -> new ApiException(new ApiError(LocalDateTime.now(), 401, "AUTHENTICATION_FAILED",
@@ -45,6 +59,10 @@ public class AuthFacade {
     }
 
     public void loginWithGoogle(String idToken) {
+        if (idToken == null || idToken.isBlank()) {
+            throw new ApiException(new ApiError(LocalDateTime.now(), 401, "AUTHENTICATION_FAILED",
+                    "Missing Google credential", List.of()));
+        }
         authenticatedUser.login(issueTokens("google.demo@example.com", "USER"));
     }
 
