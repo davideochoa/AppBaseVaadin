@@ -93,6 +93,12 @@ class UserControllerIT extends PostgresTestContainerBase {
         return new HttpEntity<>(body, headers);
     }
 
+    private HttpEntity<Void> withToken(String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        return new HttpEntity<>(headers);
+    }
+
     @Test
     void fullUserCrudFlowAsAdmin() {
         UserRequest request = buildValidRequest();
@@ -160,11 +166,19 @@ class UserControllerIT extends PostgresTestContainerBase {
         UserRequest request = buildValidRequest();
         restTemplate.exchange("/users", HttpMethod.POST, withAdminToken(request), String.class);
 
-        ResponseEntity<String> response = restTemplate.getForEntity(
-                "/users/by-email?email=" + request.getEmail(), String.class);
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/users/by-email?email=" + request.getEmail(), HttpMethod.GET, withToken("user-token"), String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains(request.getEmail());
+    }
+
+    @Test
+    void getByEmailWithoutTokenReturns401() {
+        ResponseEntity<String> response = restTemplate.getForEntity(
+                "/users/by-email?email=jane.doe@example.com", String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test

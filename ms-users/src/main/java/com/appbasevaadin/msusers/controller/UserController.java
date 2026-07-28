@@ -33,7 +33,7 @@ public class UserController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('ADMINISTRATOR', 'SERVICE')")
     public ResponseEntity<UserResponse> create(@Valid @RequestBody UserRequest request) {
         UserResponse response = userMapper.toResponse(userService.create(request));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

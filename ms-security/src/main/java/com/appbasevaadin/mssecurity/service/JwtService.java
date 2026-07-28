@@ -49,6 +49,25 @@ public class JwtService {
         return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
     }
 
+    /**
+     * Mints a short-lived token this service presents to ms-users for its own inter-service calls
+     * (Google auto-provisioning), so those calls carry a real, verifiable identity instead of
+     * going out unauthenticated. Only ms-security holds the private key that can produce this.
+     */
+    public String generateServiceToken() {
+        Instant now = Instant.now();
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer("ms-security")
+                .subject("ms-security")
+                .issuedAt(now)
+                .expiresAt(now.plus(1, ChronoUnit.MINUTES))
+                .claim("email", "service@ms-security.internal")
+                .claim("role", "SERVICE")
+                .build();
+        JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256).build();
+        return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+    }
+
     public long getRefreshTokenTtlDays() {
         return refreshTokenTtlDays;
     }
