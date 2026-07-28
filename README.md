@@ -53,29 +53,16 @@ workflow (`.github/workflows/ms-users-ci.yml`, `ms-security-ci.yml`,
 
 ## Running the full stack
 
+Full instructions, including a manual per-service fallback for when
+Docker/Testcontainers misbehaves on a given machine: see
+[`LOCAL_SETUP.md`](./LOCAL_SETUP.md). Quick start:
+
 ```bash
 cp .env.example .env   # adjust values if needed; local/demo defaults work as-is
 docker compose up --build
 ```
 
-On a slow or metered connection (e.g. mobile data), pulling/building 4
-images plus Kafka/Zookeeper is heavy. Two things help:
-- Lower Docker Desktop's `max-concurrent-downloads`/`max-concurrent-uploads`
-  in `~/.docker/daemon.json` (e.g. `2`) so layers don't split the pipe too
-  thin — requires a Docker Desktop restart to take effect.
-- Run compose with `COMPOSE_PARALLEL_LIMIT=1 COMPOSE_HTTP_TIMEOUT=300
-  docker compose up --build` to pull/start services one at a time instead
-  of all at once, and tolerate slower responses without the CLI timing out.
-
-Once every service is up:
-
-- `app-vaadin` (the app itself): http://localhost:8080
-- `ms-users` Swagger UI: http://localhost:8081/swagger-ui.html
-- `ms-security` Swagger UI: http://localhost:8082/swagger-ui.html
-- `ms-audit` Swagger UI: http://localhost:8083/swagger-ui.html
-
-Bootstrap admin login (unless `BOOTSTRAP_ADMIN_PASSWORD` was set in
-`.env`): `admin@local` / `admin123`.
-
-`docker compose down` keeps the Postgres data volumes; add `-v` to wipe
-them and start from a clean seed on the next `up`.
+Once every service is up, `app-vaadin` is at http://localhost:8080
+(bootstrap admin: `admin@local` / `admin123` unless `BOOTSTRAP_ADMIN_PASSWORD`
+was set in `.env`). `docker compose down` keeps the Postgres data volumes;
+add `-v` to wipe them and start from a clean seed on the next `up`.
