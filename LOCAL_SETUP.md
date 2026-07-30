@@ -52,6 +52,26 @@ on the host uses the host JDK's already-fixed truststore).
 Useful when Docker/Testcontainers is acting up for a specific module,
 most commonly `app-vaadin`.
 
+**On Windows, `scripts/start-infra.bat` + `scripts/start-ms.bat` automate
+this option** (still uses plain `docker run` containers for Postgres/Kafka
+only — the 3 microservices and `app-vaadin` itself run natively via `mvn
+spring-boot:run`, no Docker involved for them):
+
+```bat
+scripts\start-infra.bat
+REM wait a few seconds for Postgres/Kafka to finish starting, then:
+scripts\start-ms.bat
+REM stop later with:
+scripts\stop-infra.bat
+```
+
+`start-ms.bat` opens 4 separate `cmd` windows (ms-users, ms-security,
+ms-audit, app-vaadin), each forcing `JAVA_HOME` to JDK 21 explicitly (see
+the note on `app-vaadin`'s CI/Phase 4 entry in `CLAUDE-RESTART.md` about
+this machine's default `JAVA_HOME` being a newer JDK). Manual steps below
+are what those scripts automate, useful if you want to run a subset by
+hand or troubleshoot one module in isolation.
+
 ```bash
 # Standalone Postgres containers, one per service
 docker run -d --name pg-users    -p 5433:5432 -e POSTGRES_DB=ms_users    -e POSTGRES_USER=ms_users_app    -e POSTGRES_PASSWORD=ms_users_pass    postgres:16-alpine
