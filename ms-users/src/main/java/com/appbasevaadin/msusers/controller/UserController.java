@@ -70,4 +70,11 @@ public class UserController {
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/{id}/hard")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    public ResponseEntity<Void> hardDelete(@PathVariable Long id) {
+        userService.hardDelete(id);
+        return ResponseEntity.noContent().build();
+    }
 }

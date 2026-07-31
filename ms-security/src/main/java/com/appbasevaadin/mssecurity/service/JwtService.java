@@ -39,9 +39,10 @@ public class JwtService {
         Instant now = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer("ms-security")
-                .subject(user.getEmail())
+                .subject(user.getUsername())
                 .issuedAt(now)
                 .expiresAt(now.plus(accessTokenTtlMinutes, ChronoUnit.MINUTES))
+                .claim("username", user.getUsername())
                 .claim("email", user.getEmail())
                 .claim("role", user.getRole())
                 .build();

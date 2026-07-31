@@ -75,6 +75,14 @@ public class UsersApiClient {
                 .body(UserResponse.class);
     }
 
+    public void hardDelete(Long id) {
+        usersRestClient.delete()
+                .uri("/users/{id}/hard", id)
+                .retrieve()
+                .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
+                .toBodilessEntity();
+    }
+
     public List<UserTypeResponse> listUserTypes() {
         return usersRestClient.get()
                 .uri("/user-types")

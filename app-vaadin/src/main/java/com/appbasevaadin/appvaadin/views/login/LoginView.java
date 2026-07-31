@@ -1,7 +1,9 @@
 package com.appbasevaadin.appvaadin.views.login;
 
+import com.appbasevaadin.appvaadin.auth.AuthenticatedUser;
 import com.appbasevaadin.appvaadin.client.ApiException;
 import com.appbasevaadin.appvaadin.facade.AuthFacade;
+import com.appbasevaadin.appvaadin.facade.SecurityUserFacade;
 import com.appbasevaadin.appvaadin.views.users.UserListView;
 import com.vaadin.flow.component.ClientCallable;
 import com.vaadin.flow.component.Key;
@@ -11,8 +13,8 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,14 +26,20 @@ public class LoginView extends VerticalLayout {
     private static final String GOOGLE_BUTTON_CONTAINER_ID = "google-btn-container";
 
     private final AuthFacade authFacade;
+    private final AuthenticatedUser authenticatedUser;
+    private final SecurityUserFacade securityUserFacade;
 
-    private final EmailField emailField = new EmailField();
+    private final TextField usernameField = new TextField();
     private final PasswordField passwordField = new PasswordField();
     private final Span errorMessage = new Span();
     private final Div googleButtonContainer = new Div();
 
-    public LoginView(AuthFacade authFacade, @Value("${app.google.client-id:}") String googleClientId) {
+    public LoginView(AuthFacade authFacade, AuthenticatedUser authenticatedUser,
+                      SecurityUserFacade securityUserFacade,
+                      @Value("${app.google.client-id:}") String googleClientId) {
         this.authFacade = authFacade;
+        this.authenticatedUser = authenticatedUser;
+        this.securityUserFacade = securityUserFacade;
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -45,8 +53,8 @@ public class LoginView extends VerticalLayout {
     }
 
     private void buildForm() {
-        emailField.setLabel(getTranslation("login.email"));
-        emailField.setWidth("20em");
+        usernameField.setLabel(getTranslation("login.username"));
+        usernameField.setWidth("20em");
         passwordField.setLabel(getTranslation("login.password"));
         passwordField.setWidth("20em");
 
@@ -60,7 +68,7 @@ public class LoginView extends VerticalLayout {
         googleButtonContainer.setId(GOOGLE_BUTTON_CONTAINER_ID);
 
         VerticalLayout formLayout = new VerticalLayout(
-                new H1(getTranslation("login.title")), emailField, passwordField, submit, errorMessage,
+                new H1(getTranslation("login.title")), usernameField, passwordField, submit, errorMessage,
                 googleButtonContainer);
         formLayout.setAlignItems(Alignment.STRETCH);
         formLayout.setWidth("24em");
@@ -69,8 +77,8 @@ public class LoginView extends VerticalLayout {
 
     private void attemptLogin() {
         try {
-            authFacade.login(emailField.getValue(), passwordField.getValue());
-            UI.getCurrent().navigate(UserListView.class);
+            authFacade.login(usernameField.getValue(), passwordField.getValue());
+            proceedAfterLogin();
         } catch (ApiException e) {
             showError(getTranslation("login.error"));
         }
@@ -96,9 +104,18 @@ public class LoginView extends VerticalLayout {
     private void onGoogleCredential(String idToken) {
         try {
             authFacade.loginWithGoogle(idToken);
-            UI.getCurrent().navigate(UserListView.class);
+            proceedAfterLogin();
         } catch (ApiException e) {
             showError(getTranslation("login.error"));
+        }
+    }
+
+    private void proceedAfterLogin() {
+        if (authenticatedUser.isMustResetPassword()) {
+            new ForcePasswordResetDialog(securityUserFacade,
+                    () -> UI.getCurrent().navigate(UserListView.class)).open();
+        } else {
+            UI.getCurrent().navigate(UserListView.class);
         }
     }
 

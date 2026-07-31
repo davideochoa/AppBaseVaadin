@@ -2,6 +2,7 @@ package com.appbasevaadin.appvaadin.views.users;
 
 import com.appbasevaadin.appvaadin.auth.AuthenticatedUser;
 import com.appbasevaadin.appvaadin.dto.PageResponse;
+import com.appbasevaadin.appvaadin.facade.SecurityUserFacade;
 import com.appbasevaadin.appvaadin.facade.UserFacade;
 import com.appbasevaadin.appvaadin.testutil.KaribuTestSetup;
 import com.github.mvysny.kaributesting.v10.MockVaadin;
@@ -23,11 +24,13 @@ import static org.mockito.Mockito.when;
 class UserListViewTest {
 
     private UserFacade userFacade;
+    private SecurityUserFacade securityUserFacade;
 
     @BeforeEach
     void setUp() {
         KaribuTestSetup.setupProductionMode();
         userFacade = Mockito.mock(UserFacade.class);
+        securityUserFacade = Mockito.mock(SecurityUserFacade.class);
         when(userFacade.search(any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(new PageResponse<>(List.of(), 0, 0, 0, 20));
         when(userFacade.listUserTypes()).thenReturn(List.of());
@@ -43,7 +46,7 @@ class UserListViewTest {
         AuthenticatedUser adminUser = Mockito.mock(AuthenticatedUser.class);
         when(adminUser.hasRole("ADMINISTRATOR")).thenReturn(true);
 
-        UserListView view = new UserListView(userFacade, adminUser);
+        UserListView view = new UserListView(userFacade, securityUserFacade, adminUser);
         UI.getCurrent().add(view);
 
         assertThat(_find(view, Button.class)).isNotEmpty();
@@ -54,7 +57,7 @@ class UserListViewTest {
         AuthenticatedUser regularUser = Mockito.mock(AuthenticatedUser.class);
         when(regularUser.hasRole("ADMINISTRATOR")).thenReturn(false);
 
-        UserListView view = new UserListView(userFacade, regularUser);
+        UserListView view = new UserListView(userFacade, securityUserFacade, regularUser);
         UI.getCurrent().add(view);
 
         assertThat(_find(view, Button.class)).isEmpty();

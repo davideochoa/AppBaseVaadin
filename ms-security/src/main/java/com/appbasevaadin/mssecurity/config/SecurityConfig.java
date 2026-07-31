@@ -3,11 +3,14 @@ package com.appbasevaadin.mssecurity.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
@@ -19,6 +22,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
@@ -30,17 +34,26 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http,
                                             CorsConfigurationSource corsConfigurationSource,
                                             RateLimitFilter rateLimitFilter,
+                                            JwtRoleConverter jwtRoleConverter,
                                             JwtAuthEntryPoint jwtAuthEntryPoint,
                                             JwtAccessDeniedHandler jwtAccessDeniedHandler) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.POST, "/login", "/login/google", "/refresh", "/logout")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/.well-known/jwks.json", "/actuator/**",
+                                "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .anyRequest().authenticated())
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint(jwtAuthEntryPoint)
                         .accessDeniedHandler(jwtAccessDeniedHandler))
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {
+                    JwtAuthenticationConverter authenticationConverter = new JwtAuthenticationConverter();
+                    authenticationConverter.setJwtGrantedAuthoritiesConverter(jwtRoleConverter);
+                    jwt.jwtAuthenticationConverter(authenticationConverter);
                 }))
                 // Lesson 3: Spring Security's default LogoutFilter intercepts POST /logout
                 // before our own AuthController#logout ever runs — must disable it explicitly.

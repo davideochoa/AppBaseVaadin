@@ -26,6 +26,9 @@ public class SecurityUser {
     @Column(name = "user_id")
     private Long userId;
 
+    @Column(name = "username", nullable = false, unique = true, columnDefinition = "varchar(50)")
+    private String username;
+
     @Column(name = "email", nullable = false, unique = true, columnDefinition = "varchar(150)")
     private String email;
 
@@ -41,4 +44,7 @@ public class SecurityUser {
 
     @Column(name = "active", nullable = false)
     private boolean active = true;
+
+    @Column(name = "must_reset_password", nullable = false)
+    private boolean mustResetPassword = false;
 }

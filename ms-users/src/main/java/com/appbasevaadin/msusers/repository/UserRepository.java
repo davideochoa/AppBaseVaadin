@@ -19,10 +19,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @EntityGraph(attributePaths = "userType")
     Optional<User> findByEmailIgnoreCase(String email);
 
+    @EntityGraph(attributePaths = "userType")
+    Optional<User> findByUsernameIgnoreCase(String username);
+
     @Query("""
             SELECT u FROM User u
             JOIN FETCH u.userType t
             WHERE (:text IS NULL OR
+                   LOWER(u.username) LIKE LOWER(CONCAT('%', CAST(:text AS string), '%')) OR
                    LOWER(u.firstName) LIKE LOWER(CONCAT('%', CAST(:text AS string), '%')) OR
                    LOWER(u.lastName) LIKE LOWER(CONCAT('%', CAST(:text AS string), '%')) OR
                    LOWER(u.email) LIKE LOWER(CONCAT('%', CAST(:text AS string), '%')))

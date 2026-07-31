@@ -4,6 +4,7 @@ import com.appbasevaadin.appvaadin.auth.AuthenticatedUser;
 import com.appbasevaadin.appvaadin.dto.PageResponse;
 import com.appbasevaadin.appvaadin.dto.UserRequest;
 import com.appbasevaadin.appvaadin.dto.UserResponse;
+import com.appbasevaadin.appvaadin.facade.SecurityUserFacade;
 import com.appbasevaadin.appvaadin.facade.UserFacade;
 import com.appbasevaadin.appvaadin.views.MainLayout;
 import com.appbasevaadin.appvaadin.views.support.ActiveToggleSupport;
@@ -25,13 +26,16 @@ public class UserListView extends VerticalLayout {
     private static final int PAGE_SIZE = 20;
 
     private final UserFacade userFacade;
+    private final SecurityUserFacade securityUserFacade;
     private final boolean isAdmin;
 
     private String searchText = "";
     private final Grid<UserResponse> grid = new Grid<>(UserResponse.class, false);
 
-    public UserListView(UserFacade userFacade, AuthenticatedUser authenticatedUser) {
+    public UserListView(UserFacade userFacade, SecurityUserFacade securityUserFacade,
+                         AuthenticatedUser authenticatedUser) {
         this.userFacade = userFacade;
+        this.securityUserFacade = securityUserFacade;
         this.isAdmin = authenticatedUser.hasRole("ADMINISTRATOR");
 
         setSizeFull();
@@ -56,6 +60,7 @@ public class UserListView extends VerticalLayout {
     }
 
     private Grid<UserResponse> buildGrid() {
+        grid.addColumn(UserResponse::username).setHeader(getTranslation("users.username"));
         grid.addColumn(UserResponse::firstName).setHeader(getTranslation("users.firstName"));
         grid.addColumn(UserResponse::lastName).setHeader(getTranslation("users.lastName"));
         grid.addColumn(UserResponse::email).setHeader(getTranslation("users.email"));
@@ -79,10 +84,14 @@ public class UserListView extends VerticalLayout {
 
     private Checkbox buildActiveToggle(UserResponse user) {
         return ActiveToggleSupport.buildToggle(user.active(), active -> {
-            UserRequest request = new UserRequest(user.firstName(), user.lastName(), user.email(),
+            UserRequest request = new UserRequest(user.username(), user.firstName(), user.lastName(), user.email(),
                     user.userType().id(), active);
+            String role = user.userType().name().toUpperCase();
             ActiveToggleSupport.persistAndRefresh(
-                    () -> userFacade.update(user.id(), request),
+                    () -> {
+                        userFacade.update(user.id(), request);
+                        securityUserFacade.update(user.username(), user.username(), user.email(), role, active);
+                    },
                     () -> grid.getDataProvider().refreshAll());
         });
     }
@@ -106,8 +115,8 @@ public class UserListView extends VerticalLayout {
     }
 
     private void openForm(UserResponse existingUser) {
-        UserFormDialog dialog = new UserFormDialog(userFacade, userFacade.listUserTypes(), existingUser,
-                () -> grid.getDataProvider().refreshAll());
+        UserFormDialog dialog = new UserFormDialog(userFacade, securityUserFacade, userFacade.listUserTypes(),
+                existingUser, () -> grid.getDataProvider().refreshAll());
         dialog.open();
     }
 }

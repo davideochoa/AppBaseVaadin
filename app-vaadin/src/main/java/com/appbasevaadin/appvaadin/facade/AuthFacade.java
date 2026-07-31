@@ -15,8 +15,8 @@ public class AuthFacade {
         this.authenticatedUser = authenticatedUser;
     }
 
-    public void login(String email, String password) {
-        authenticatedUser.login(authApiClient.login(email, password));
+    public void login(String username, String password) {
+        authenticatedUser.login(authApiClient.login(username, password));
     }
 
     public void loginWithGoogle(String idToken) {

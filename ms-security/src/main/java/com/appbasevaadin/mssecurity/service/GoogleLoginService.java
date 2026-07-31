@@ -58,11 +58,13 @@ public class GoogleLoginService {
 
         SecurityUser securityUser = new SecurityUser();
         securityUser.setUserId(user.id());
+        securityUser.setUsername(deriveUsername(email));
         securityUser.setEmail(email);
         securityUser.setPasswordHash(null);
         securityUser.setRole(DEFAULT_ROLE);
         securityUser.setAuthProvider(AuthProvider.GOOGLE);
         securityUser.setActive(true);
+        securityUser.setMustResetPassword(false);
         return securityUserRepository.save(securityUser);
     }
 
@@ -70,10 +72,21 @@ public class GoogleLoginService {
         String firstName = (String) payload.get("given_name");
         String lastName = (String) payload.get("family_name");
         return usersClient.create(
+                deriveUsername(email),
                 firstName != null ? firstName : email,
                 lastName != null ? lastName : "",
                 email,
                 userTypeCache.getDefaultNonAdminUserTypeId());
+    }
+
+    /**
+     * Google-provisioned users never log in with a username/password (id-token
+     * passthrough only), so this only needs to satisfy the NOT NULL/UNIQUE
+     * constraint shared with LOCAL accounts — collisions are not retried.
+     */
+    private String deriveUsername(String email) {
+        int at = email.indexOf('@');
+        return (at > 0 ? email.substring(0, at) : email).toLowerCase();
     }
 
     private GoogleIdToken.Payload verify(String rawIdToken, String ipAddress) {

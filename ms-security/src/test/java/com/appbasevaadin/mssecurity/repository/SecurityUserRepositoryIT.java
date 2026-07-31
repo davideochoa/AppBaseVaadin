@@ -23,6 +23,7 @@ class SecurityUserRepositoryIT extends PostgresTestContainerBase {
     void findByEmailIgnoreCaseFindsSeededOrInsertedUser() {
         SecurityUser user = new SecurityUser();
         user.setUserId(42L);
+        user.setUsername("jane.doe");
         user.setEmail("jane.doe@example.com");
         user.setPasswordHash("irrelevant-hash");
         user.setRole("USER");

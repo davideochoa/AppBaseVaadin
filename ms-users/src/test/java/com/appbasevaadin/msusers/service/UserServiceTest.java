@@ -45,6 +45,7 @@ class UserServiceTest {
     @Test
     void createSavesActiveUserByDefault() {
         UserRequest request = new UserRequest();
+        request.setUsername("luis.perez");
         request.setFirstName("Luis");
         request.setLastName("Perez");
         request.setEmail("luis.perez@example.com");
@@ -63,6 +64,7 @@ class UserServiceTest {
     @Test
     void createWithNonexistentUserTypeThrowsException() {
         UserRequest request = new UserRequest();
+        request.setUsername("luis.perez");
         request.setFirstName("Luis");
         request.setLastName("Perez");
         request.setEmail("luis.perez@example.com");

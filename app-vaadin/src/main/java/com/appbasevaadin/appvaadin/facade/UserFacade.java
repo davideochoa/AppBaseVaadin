@@ -39,6 +39,10 @@ public class UserFacade {
         return usersApiClient.update(id, request);
     }
 
+    public void hardDelete(Long id) {
+        usersApiClient.hardDelete(id);
+    }
+
     public List<UserTypeResponse> listUserTypes() {
         return usersApiClient.listUserTypes();
     }

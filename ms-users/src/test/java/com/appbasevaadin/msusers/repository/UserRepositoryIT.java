@@ -41,6 +41,7 @@ class UserRepositoryIT extends PostgresTestContainerBase {
                 });
 
         User user = new User();
+        user.setUsername("jane.doe");
         user.setFirstName("Jane");
         user.setLastName("Doe");
         user.setEmail("jane.doe@example.com");
