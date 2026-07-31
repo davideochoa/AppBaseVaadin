@@ -1,14 +1,16 @@
 package com.appbasevaadin.appvaadin.views.login;
 
+import com.appbasevaadin.appvaadin.auth.AuthenticatedUser;
 import com.appbasevaadin.appvaadin.client.ApiException;
 import com.appbasevaadin.appvaadin.dto.ApiError;
 import com.appbasevaadin.appvaadin.facade.AuthFacade;
+import com.appbasevaadin.appvaadin.facade.SecurityUserFacade;
 import com.appbasevaadin.appvaadin.testutil.KaribuTestSetup;
 import com.github.mvysny.kaributesting.v10.MockVaadin;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
+import com.vaadin.flow.component.textfield.TextField;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +36,9 @@ class LoginViewTest {
     void setUp() {
         KaribuTestSetup.setupProductionMode();
         authFacade = Mockito.mock(AuthFacade.class);
-        loginView = new LoginView(authFacade, "");
+        AuthenticatedUser authenticatedUser = Mockito.mock(AuthenticatedUser.class);
+        SecurityUserFacade securityUserFacade = Mockito.mock(SecurityUserFacade.class);
+        loginView = new LoginView(authFacade, authenticatedUser, securityUserFacade, "");
         com.vaadin.flow.component.UI.getCurrent().add(loginView);
     }
 
@@ -45,15 +49,15 @@ class LoginViewTest {
 
     @Test
     void invalidCredentialsShowAnErrorMessageAndDoNotNavigate() {
-        ApiError apiError = new ApiError(LocalDateTime.now(), 401, "UNAUTHORIZED", "Invalid email or password",
+        ApiError apiError = new ApiError(LocalDateTime.now(), 401, "UNAUTHORIZED", "Invalid username or password",
                 List.of());
-        doThrow(new ApiException(apiError)).when(authFacade).login(eq("jane@example.com"), eq("wrong"));
+        doThrow(new ApiException(apiError)).when(authFacade).login(eq("jane.doe"), eq("wrong"));
 
-        _setValue(_get(loginView, EmailField.class), "jane@example.com");
+        _setValue(_get(loginView, TextField.class), "jane.doe");
         _setValue(_get(loginView, PasswordField.class), "wrong");
         _click(_get(loginView, Button.class));
 
-        verify(authFacade).login("jane@example.com", "wrong");
+        verify(authFacade).login("jane.doe", "wrong");
         Span errorMessage = _get(loginView, Span.class);
         assertThat(errorMessage.isVisible()).isTrue();
     }

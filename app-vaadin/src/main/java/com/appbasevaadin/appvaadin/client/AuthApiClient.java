@@ -17,10 +17,10 @@ public class AuthApiClient {
         this.securityRestClient = securityRestClient;
     }
 
-    public TokenResponse login(String email, String password) {
+    public TokenResponse login(String username, String password) {
         return securityRestClient.post()
                 .uri("/login")
-                .body(new LoginRequest(email, password))
+                .body(new LoginRequest(username, password))
                 .retrieve()
                 .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
                 .body(TokenResponse.class);

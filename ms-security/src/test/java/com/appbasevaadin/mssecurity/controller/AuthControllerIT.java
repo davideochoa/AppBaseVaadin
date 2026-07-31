@@ -32,11 +32,15 @@ class AuthControllerIT extends PostgresTestContainerBase {
     private PasswordEncoder passwordEncoder;
 
     private String email;
+    private String username;
 
     @BeforeEach
     void setUp() {
-        email = "jane.doe." + System.nanoTime() + "@example.com";
+        long unique = System.nanoTime();
+        email = "jane.doe." + unique + "@example.com";
+        username = "jane.doe." + unique;
         SecurityUser user = new SecurityUser();
+        user.setUsername(username);
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode("correct-password"));
         user.setRole("USER");
@@ -47,7 +51,7 @@ class AuthControllerIT extends PostgresTestContainerBase {
 
     private LoginRequest loginRequest(String password) {
         LoginRequest request = new LoginRequest();
-        request.setEmail(email);
+        request.setUsername(username);
         request.setPassword(password);
         return request;
     }

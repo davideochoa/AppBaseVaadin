@@ -5,10 +5,11 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class TokenResponse {
+public class SecurityUserResponse {
 
-    private final String accessToken;
-    private final String refreshToken;
+    private final String username;
+    private final String email;
+    private final String role;
+    private final boolean active;
     private final boolean mustResetPassword;
-    private final String tokenType = "Bearer";
 }

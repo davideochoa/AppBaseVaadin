@@ -30,7 +30,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public TokenResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        return authService.login(request.getEmail(), request.getPassword(), clientIpResolver.resolve(httpRequest));
+        return authService.login(request.getUsername(), request.getPassword(), clientIpResolver.resolve(httpRequest));
     }
 
     @PostMapping("/login/google")

@@ -15,6 +15,12 @@ public class AppConfig {
     }
 
     @Bean
+    public RestClient securityAdminRestClient(@Value("${app.clients.ms-security-base-url}") String baseUrl,
+                                               AuthInterceptor authInterceptor) {
+        return RestClient.builder().baseUrl(baseUrl).requestInterceptor(authInterceptor).build();
+    }
+
+    @Bean
     public RestClient usersRestClient(@Value("${app.clients.ms-users-base-url}") String baseUrl,
                                        AuthInterceptor authInterceptor) {
         return RestClient.builder().baseUrl(baseUrl).requestInterceptor(authInterceptor).build();

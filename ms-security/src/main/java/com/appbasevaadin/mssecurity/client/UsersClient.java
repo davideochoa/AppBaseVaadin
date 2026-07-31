@@ -31,10 +31,10 @@ public class UsersClient {
         }
     }
 
-    public UserDto create(String firstName, String lastName, String email, Long userTypeId) {
+    public UserDto create(String username, String firstName, String lastName, String email, Long userTypeId) {
         return restClient.post()
                 .uri("/users")
-                .body(new CreateUserRequest(firstName, lastName, email, userTypeId, true))
+                .body(new CreateUserRequest(username, firstName, lastName, email, userTypeId, true))
                 .retrieve()
                 .body(UserDto.class);
     }
@@ -47,7 +47,7 @@ public class UsersClient {
                 });
     }
 
-    private record CreateUserRequest(String firstName, String lastName, String email,
+    private record CreateUserRequest(String username, String firstName, String lastName, String email,
                                       Long userTypeId, boolean active) {
     }
 }

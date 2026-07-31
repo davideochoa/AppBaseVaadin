@@ -65,9 +65,23 @@ public class UserService {
         userRepository.save(user);
     }
 
+    /**
+     * Permanent removal, unlike {@link #delete}. Only meant for a caller
+     * compensating a just-created row (e.g. the security-user side of the
+     * creation failed) — never for retiring a real, previously-used account,
+     * which must go through the soft-delete above.
+     */
+    public void hardDelete(Long id) {
+        if (!userRepository.existsById(id)) {
+            throw new UserNotFoundException(id);
+        }
+        userRepository.deleteById(id);
+    }
+
     private void applyData(User user, UserRequest request) {
         UserType userType = userTypeRepository.findById(request.getUserTypeId())
                 .orElseThrow(() -> new UserTypeNotFoundException(request.getUserTypeId()));
+        user.setUsername(request.getUsername());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setEmail(request.getEmail());

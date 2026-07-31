@@ -52,6 +52,14 @@ public class AuthenticatedUser {
         return currentSession().map(Session::claims).map(claims -> (String) claims.get("email"));
     }
 
+    public Optional<String> getUsername() {
+        return currentSession().map(Session::claims).map(claims -> (String) claims.get("username"));
+    }
+
+    public boolean isMustResetPassword() {
+        return currentSession().map(Session::tokens).map(TokenResponse::mustResetPassword).orElse(false);
+    }
+
     public Optional<String> getRole() {
         return currentSession().map(Session::claims).map(claims -> (String) claims.get("role"));
     }

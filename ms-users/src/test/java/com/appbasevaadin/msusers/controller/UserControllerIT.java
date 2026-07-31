@@ -74,9 +74,11 @@ class UserControllerIT extends PostgresTestContainerBase {
 
     private UserRequest buildValidRequest() {
         UserRequest request = new UserRequest();
+        long unique = System.nanoTime();
+        request.setUsername("jane.doe." + unique);
         request.setFirstName("Jane");
         request.setLastName("Doe");
-        request.setEmail("jane.doe." + System.nanoTime() + "@example.com");
+        request.setEmail("jane.doe." + unique + "@example.com");
         request.setUserTypeId(userTypeId);
         return request;
     }

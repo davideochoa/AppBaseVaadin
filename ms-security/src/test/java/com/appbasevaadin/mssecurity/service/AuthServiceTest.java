@@ -53,6 +53,7 @@ class AuthServiceTest {
 
         user = new SecurityUser();
         user.setId(1L);
+        user.setUsername("jane.doe");
         user.setEmail("jane.doe@example.com");
         user.setPasswordHash("hashed-password");
         user.setRole("USER");
@@ -62,14 +63,14 @@ class AuthServiceTest {
 
     @Test
     void loginWithValidCredentialsIssuesTokens() {
-        when(securityUserRepository.findByEmailIgnoreCase("jane.doe@example.com")).thenReturn(Optional.of(user));
+        when(securityUserRepository.findByUsernameIgnoreCase("jane.doe")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("correct-password", "hashed-password")).thenReturn(true);
         when(jwtService.generateAccessToken(user)).thenReturn("access-token");
         when(jwtService.generateOpaqueRefreshToken()).thenReturn("raw-refresh-token");
         when(jwtService.hash("raw-refresh-token")).thenReturn("hashed-refresh-token");
         when(jwtService.getRefreshTokenTtlDays()).thenReturn(7L);
 
-        TokenResponse response = authService.login("jane.doe@example.com", "correct-password", "127.0.0.1");
+        TokenResponse response = authService.login("jane.doe", "correct-password", "127.0.0.1");
 
         assertThat(response.getAccessToken()).isEqualTo("access-token");
         assertThat(response.getRefreshToken()).isEqualTo("raw-refresh-token");
@@ -77,27 +78,27 @@ class AuthServiceTest {
 
     @Test
     void loginWithWrongPasswordThrows() {
-        when(securityUserRepository.findByEmailIgnoreCase("jane.doe@example.com")).thenReturn(Optional.of(user));
+        when(securityUserRepository.findByUsernameIgnoreCase("jane.doe")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("wrong-password", "hashed-password")).thenReturn(false);
 
-        assertThatThrownBy(() -> authService.login("jane.doe@example.com", "wrong-password", "127.0.0.1"))
+        assertThatThrownBy(() -> authService.login("jane.doe", "wrong-password", "127.0.0.1"))
                 .isInstanceOf(InvalidCredentialsException.class);
     }
 
     @Test
-    void loginWithUnknownEmailThrows() {
-        when(securityUserRepository.findByEmailIgnoreCase("ghost@example.com")).thenReturn(Optional.empty());
+    void loginWithUnknownUsernameThrows() {
+        when(securityUserRepository.findByUsernameIgnoreCase("ghost")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> authService.login("ghost@example.com", "whatever", "127.0.0.1"))
+        assertThatThrownBy(() -> authService.login("ghost", "whatever", "127.0.0.1"))
                 .isInstanceOf(InvalidCredentialsException.class);
     }
 
     @Test
     void loginForGoogleOnlyAccountWithNoPasswordThrows() {
         user.setPasswordHash(null);
-        when(securityUserRepository.findByEmailIgnoreCase("jane.doe@example.com")).thenReturn(Optional.of(user));
+        when(securityUserRepository.findByUsernameIgnoreCase("jane.doe")).thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> authService.login("jane.doe@example.com", "anything", "127.0.0.1"))
+        assertThatThrownBy(() -> authService.login("jane.doe", "anything", "127.0.0.1"))
                 .isInstanceOf(InvalidCredentialsException.class);
     }
 

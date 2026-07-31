@@ -58,7 +58,7 @@ class UsersApiClientTest {
                                 "errors":[{"field":"email","message":"Email format is invalid"}]}
                                 """));
 
-        UserRequest request = new UserRequest("Jane", "Doe", "not-an-email", 2L, true);
+        UserRequest request = new UserRequest("jane.doe", "Jane", "Doe", "not-an-email", 2L, true);
 
         assertThatThrownBy(() -> usersApiClient.create(request))
                 .isInstanceOf(ApiException.class)

@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -29,6 +30,16 @@ public class GlobalExceptionHandler {
             InvalidRefreshTokenException.class})
     public ResponseEntity<ApiError> handleUnauthorized(RuntimeException ex) {
         return buildErrorResponse(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", ex.getMessage(), List.of());
+    }
+
+    @ExceptionHandler(SecurityUserNotFoundException.class)
+    public ResponseEntity<ApiError> handleNotFound(SecurityUserNotFoundException ex) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "NOT_FOUND", ex.getMessage(), List.of());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access is denied", List.of());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

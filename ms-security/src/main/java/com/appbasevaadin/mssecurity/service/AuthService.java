@@ -36,14 +36,14 @@ public class AuthService {
         this.auditEventPublisher = auditEventPublisher;
     }
 
-    public TokenResponse login(String email, String rawPassword, String ipAddress) {
-        SecurityUser user = securityUserRepository.findByEmailIgnoreCase(email)
+    public TokenResponse login(String username, String rawPassword, String ipAddress) {
+        SecurityUser user = securityUserRepository.findByUsernameIgnoreCase(username)
                 .filter(SecurityUser::isActive)
                 .orElse(null);
 
         if (user == null || user.getPasswordHash() == null
                 || !passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
-            auditEventPublisher.publishLoginFailed(email, ipAddress);
+            auditEventPublisher.publishLoginFailed(username, ipAddress);
             throw new InvalidCredentialsException();
         }
 
@@ -80,7 +80,7 @@ public class AuthService {
         refreshToken.setExpiresAt(LocalDateTime.now().plusDays(jwtService.getRefreshTokenTtlDays()));
         refreshTokenRepository.save(refreshToken);
 
-        return new TokenResponse(accessToken, rawRefreshToken);
+        return new TokenResponse(accessToken, rawRefreshToken, user.isMustResetPassword());
     }
 
     private RefreshToken findValidRefreshToken(String rawRefreshToken) {
