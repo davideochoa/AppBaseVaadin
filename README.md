@@ -63,6 +63,9 @@ docker compose up --build
 ```
 
 Once every service is up, `app-vaadin` is at http://localhost:8080
-(bootstrap admin: `admin` / `admin123` unless `BOOTSTRAP_ADMIN_PASSWORD`
-was set in `.env`). `docker compose down` keeps the Postgres data volumes;
-add `-v` to wipe them and start from a clean seed on the next `up`.
+(bootstrap admin: `admin` / `admin`). This account is always seeded with
+a forced password reset: on first login the system won't grant a session
+and instead requires setting a new password (at least 4 characters,
+different from `admin`) before you can sign in for real. `docker compose
+down` keeps the Postgres data volumes; add `-v` to wipe them and start
+from a clean seed on the next `up`.

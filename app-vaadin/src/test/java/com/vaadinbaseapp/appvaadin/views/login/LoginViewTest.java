@@ -1,10 +1,9 @@
 package com.vaadinbaseapp.appvaadin.views.login;
 
-import com.vaadinbaseapp.appvaadin.auth.AuthenticatedUser;
 import com.vaadinbaseapp.appvaadin.client.ApiException;
 import com.vaadinbaseapp.appvaadin.dto.ApiError;
+import com.vaadinbaseapp.appvaadin.dto.TokenResponse;
 import com.vaadinbaseapp.appvaadin.facade.AuthFacade;
-import com.vaadinbaseapp.appvaadin.facade.SecurityUserFacade;
 import com.vaadinbaseapp.appvaadin.testutil.KaribuTestSetup;
 import com.github.mvysny.kaributesting.v10.MockVaadin;
 import com.vaadin.flow.component.button.Button;
@@ -26,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class LoginViewTest {
 
@@ -36,9 +36,7 @@ class LoginViewTest {
     void setUp() {
         KaribuTestSetup.setupProductionMode();
         authFacade = Mockito.mock(AuthFacade.class);
-        AuthenticatedUser authenticatedUser = Mockito.mock(AuthenticatedUser.class);
-        SecurityUserFacade securityUserFacade = Mockito.mock(SecurityUserFacade.class);
-        loginView = new LoginView(authFacade, authenticatedUser, securityUserFacade, "");
+        loginView = new LoginView(authFacade, "");
         com.vaadin.flow.component.UI.getCurrent().add(loginView);
     }
 
@@ -60,5 +58,19 @@ class LoginViewTest {
         verify(authFacade).login("jane.doe", "wrong");
         Span errorMessage = _get(loginView, Span.class);
         assertThat(errorMessage.isVisible()).isTrue();
+    }
+
+    @Test
+    void accountFlaggedMustResetPasswordShowsTheForcedResetDialogInsteadOfNavigating() {
+        when(authFacade.login("admin", "admin"))
+                .thenReturn(new TokenResponse(null, null, true, "raw-reset-token", "Bearer"));
+
+        _setValue(_get(loginView, TextField.class), "admin");
+        _setValue(_get(loginView, PasswordField.class), "admin");
+        _click(_get(loginView, Button.class));
+
+        com.vaadin.flow.component.dialog.Dialog dialog =
+                _get(com.vaadin.flow.component.dialog.Dialog.class);
+        assertThat(dialog.isOpened()).isTrue();
     }
 }

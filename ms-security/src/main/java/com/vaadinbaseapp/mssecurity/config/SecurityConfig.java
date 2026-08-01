@@ -42,7 +42,8 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/login", "/login/google", "/refresh", "/logout")
+                        .requestMatchers(HttpMethod.POST, "/login", "/login/google", "/login/reset-password",
+                                "/refresh", "/logout")
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/.well-known/jwks.json", "/actuator/**",
                                 "/swagger-ui/**", "/v3/api-docs/**").permitAll()

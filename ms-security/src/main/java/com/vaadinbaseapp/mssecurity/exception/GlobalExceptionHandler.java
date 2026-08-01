@@ -27,9 +27,15 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({InvalidCredentialsException.class, InvalidGoogleTokenException.class,
-            InvalidRefreshTokenException.class})
+            InvalidRefreshTokenException.class, InvalidResetTokenException.class})
     public ResponseEntity<ApiError> handleUnauthorized(RuntimeException ex) {
         return buildErrorResponse(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", ex.getMessage(), List.of());
+    }
+
+    @ExceptionHandler(SamePasswordException.class)
+    public ResponseEntity<ApiError> handleSamePassword(SamePasswordException ex) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "VALIDATION", ex.getMessage(),
+                List.of(new ApiError.FieldError("newPassword", ex.getMessage())));
     }
 
     @ExceptionHandler(SecurityUserNotFoundException.class)

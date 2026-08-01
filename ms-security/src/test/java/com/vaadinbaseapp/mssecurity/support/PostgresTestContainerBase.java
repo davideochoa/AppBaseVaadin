@@ -22,8 +22,8 @@ public abstract class PostgresTestContainerBase {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
     }
 
-    // Note: the V3 bootstrap-admin Flyway migration reads BOOTSTRAP_ADMIN_EMAIL/PASSWORD via
-    // System.getenv() directly (Flyway Java migrations aren't Spring-managed, so they can't see
-    // @DynamicPropertySource values). Tests that need a known local-login account should insert
-    // their own SecurityUser row instead of depending on that seeded one.
+    // Note: the V3 bootstrap-admin Flyway migration seeds a fixed admin/admin account with
+    // must_reset_password=TRUE, gated behind the forced login-time reset flow. Tests that need a
+    // known, immediately-usable local-login account should insert their own SecurityUser row
+    // instead of depending on that seeded one.
 }

@@ -2,11 +2,15 @@ package com.vaadinbaseapp.mssecurity.service;
 
 import com.vaadinbaseapp.mssecurity.dto.TokenResponse;
 import com.vaadinbaseapp.mssecurity.entity.AuthProvider;
+import com.vaadinbaseapp.mssecurity.entity.PasswordResetToken;
 import com.vaadinbaseapp.mssecurity.entity.RefreshToken;
 import com.vaadinbaseapp.mssecurity.entity.SecurityUser;
 import com.vaadinbaseapp.mssecurity.exception.InvalidCredentialsException;
 import com.vaadinbaseapp.mssecurity.exception.InvalidRefreshTokenException;
+import com.vaadinbaseapp.mssecurity.exception.InvalidResetTokenException;
+import com.vaadinbaseapp.mssecurity.exception.SamePasswordException;
 import com.vaadinbaseapp.mssecurity.messaging.AuditEventPublisher;
+import com.vaadinbaseapp.mssecurity.repository.PasswordResetTokenRepository;
 import com.vaadinbaseapp.mssecurity.repository.RefreshTokenRepository;
 import com.vaadinbaseapp.mssecurity.repository.SecurityUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +38,9 @@ class AuthServiceTest {
     private RefreshTokenRepository refreshTokenRepository;
 
     @Mock
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Mock
     private JwtService jwtService;
 
     @Mock
@@ -48,8 +55,8 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(securityUserRepository, refreshTokenRepository, jwtService, passwordEncoder,
-                auditEventPublisher);
+        authService = new AuthService(securityUserRepository, refreshTokenRepository, passwordResetTokenRepository,
+                jwtService, passwordEncoder, auditEventPublisher);
 
         user = new SecurityUser();
         user.setId(1L);
@@ -130,5 +137,79 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.refresh("raw-refresh-token"))
                 .isInstanceOf(InvalidRefreshTokenException.class);
+    }
+
+    @Test
+    void loginForAccountFlaggedMustResetPasswordReturnsAResetTokenInsteadOfASession() {
+        user.setMustResetPassword(true);
+        when(securityUserRepository.findByUsernameIgnoreCase("jane.doe")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("correct-password", "hashed-password")).thenReturn(true);
+        when(jwtService.generateOpaqueRefreshToken()).thenReturn("raw-reset-token");
+        when(jwtService.hash("raw-reset-token")).thenReturn("hashed-reset-token");
+
+        TokenResponse response = authService.login("jane.doe", "correct-password", "127.0.0.1");
+
+        assertThat(response.isMustResetPassword()).isTrue();
+        assertThat(response.getResetToken()).isEqualTo("raw-reset-token");
+        assertThat(response.getAccessToken()).isNull();
+        assertThat(response.getRefreshToken()).isNull();
+    }
+
+    @Test
+    void completePasswordResetWithValidTokenAndDifferentPasswordSucceeds() {
+        PasswordResetToken token = new PasswordResetToken();
+        token.setTokenHash("hashed-reset-token");
+        token.setSecurityUserId(1L);
+        token.setExpiresAt(LocalDateTime.now().plusMinutes(5));
+
+        when(jwtService.hash("raw-reset-token")).thenReturn("hashed-reset-token");
+        when(passwordResetTokenRepository.findByTokenHash("hashed-reset-token")).thenReturn(Optional.of(token));
+        when(securityUserRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("new-password", "hashed-password")).thenReturn(false);
+        when(passwordEncoder.encode("new-password")).thenReturn("new-hashed-password");
+
+        authService.completePasswordReset("raw-reset-token", "new-password");
+
+        assertThat(user.getPasswordHash()).isEqualTo("new-hashed-password");
+        assertThat(user.isMustResetPassword()).isFalse();
+    }
+
+    @Test
+    void completePasswordResetWithSamePasswordThrows() {
+        PasswordResetToken token = new PasswordResetToken();
+        token.setTokenHash("hashed-reset-token");
+        token.setSecurityUserId(1L);
+        token.setExpiresAt(LocalDateTime.now().plusMinutes(5));
+
+        when(jwtService.hash("raw-reset-token")).thenReturn("hashed-reset-token");
+        when(passwordResetTokenRepository.findByTokenHash("hashed-reset-token")).thenReturn(Optional.of(token));
+        when(securityUserRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("admin", "hashed-password")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.completePasswordReset("raw-reset-token", "admin"))
+                .isInstanceOf(SamePasswordException.class);
+    }
+
+    @Test
+    void completePasswordResetWithExpiredTokenThrows() {
+        PasswordResetToken expired = new PasswordResetToken();
+        expired.setTokenHash("hashed-reset-token");
+        expired.setSecurityUserId(1L);
+        expired.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+
+        when(jwtService.hash("raw-reset-token")).thenReturn("hashed-reset-token");
+        when(passwordResetTokenRepository.findByTokenHash("hashed-reset-token")).thenReturn(Optional.of(expired));
+
+        assertThatThrownBy(() -> authService.completePasswordReset("raw-reset-token", "new-password"))
+                .isInstanceOf(InvalidResetTokenException.class);
+    }
+
+    @Test
+    void completePasswordResetWithUnknownTokenThrows() {
+        when(jwtService.hash("garbage")).thenReturn("hashed-garbage");
+        when(passwordResetTokenRepository.findByTokenHash("hashed-garbage")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.completePasswordReset("garbage", "new-password"))
+                .isInstanceOf(InvalidResetTokenException.class);
     }
 }

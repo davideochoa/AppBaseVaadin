@@ -26,8 +26,10 @@ Once everything is up:
 - `ms-security` Swagger UI: http://localhost:8082/swagger-ui.html
 - `ms-audit` Swagger UI: http://localhost:8083/swagger-ui.html
 
-Bootstrap admin login (unless `BOOTSTRAP_ADMIN_PASSWORD` was set in
-`.env`): `admin` / `admin123`.
+Bootstrap admin login: `admin` / `admin`. This account always has a
+forced password reset on first login — `app-vaadin` won't grant a
+session on that first login and instead prompts for a new password
+(at least 4 characters, different from `admin`) before you can sign in.
 
 `docker compose down` keeps the Postgres data volumes; add `-v` to wipe
 them and start from a clean seed on the next `up`.
@@ -107,8 +109,9 @@ Health/JWKS endpoints worth checking while services come up:
 - http://localhost:8082/.well-known/jwks.json
 - http://localhost:8083/actuator/health
 
-Bootstrap admin login (unless `BOOTSTRAP_ADMIN_PASSWORD` was set in the
-environment): `admin` / `admin123`.
+Bootstrap admin login: `admin` / `admin`. This account always has a
+forced password reset on first login (see the docker-compose section
+above for what that flow looks like).
 
 Containers from this workaround are disposable — safe to leave running
 between sessions or to remove (`docker rm -f pg-users pg-security

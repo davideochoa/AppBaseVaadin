@@ -83,7 +83,6 @@ services:
       DB_USERS_PASSWORD: ${DB_USERS_PASSWORD:-ms_users_pass}
       MS_SECURITY_JWKS_URI: http://ms-security:8082/.well-known/jwks.json
       APP_VAADIN_ORIGIN: ${APP_VAADIN_ORIGIN:-http://localhost:8080}
-      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
     ports:
       - "8081:8081"
     depends_on:

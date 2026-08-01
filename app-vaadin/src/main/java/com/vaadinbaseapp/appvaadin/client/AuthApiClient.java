@@ -1,6 +1,7 @@
 package com.vaadinbaseapp.appvaadin.client;
 
 import com.vaadinbaseapp.appvaadin.dto.ApiError;
+import com.vaadinbaseapp.appvaadin.dto.CompleteResetPasswordRequest;
 import com.vaadinbaseapp.appvaadin.dto.GoogleLoginRequest;
 import com.vaadinbaseapp.appvaadin.dto.LoginRequest;
 import com.vaadinbaseapp.appvaadin.dto.RefreshRequest;
@@ -33,6 +34,15 @@ public class AuthApiClient {
                 .retrieve()
                 .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
                 .body(TokenResponse.class);
+    }
+
+    public void completePasswordReset(String resetToken, String newPassword) {
+        securityRestClient.post()
+                .uri("/login/reset-password")
+                .body(new CompleteResetPasswordRequest(resetToken, newPassword))
+                .retrieve()
+                .onStatus(status -> status.value() >= 400, ApiClientSupport::handleError)
+                .toBodilessEntity();
     }
 
     public TokenResponse refresh(String refreshToken) {
