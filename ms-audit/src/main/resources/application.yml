@@ -26,8 +26,8 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: com.appbasevaadin.msaudit.messaging
-        spring.json.value.default.type: com.appbasevaadin.msaudit.messaging.AuditEventMessage
+        spring.json.trusted.packages: com.vaadinbaseapp.msaudit.messaging
+        spring.json.value.default.type: com.vaadinbaseapp.msaudit.messaging.AuditEventMessage
         spring.json.use.type.headers: false
     listener:
       ack-mode: record

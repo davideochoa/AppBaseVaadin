@@ -80,7 +80,7 @@ jobs:
           set -e
           response=$(curl -s -X POST http://localhost:8082/login \
             -H "Content-Type: application/json" \
-            -d '{"email":"admin@local","password":"admin123"}')
+            -d '{"username":"admin","password":"admin123"}')
           echo "Login response: $response"
 
           token=$(echo "$response" | sed -n 's/.*"accessToken":"\([^"]*\)".*/\1/p')

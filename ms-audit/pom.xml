@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.appbasevaadin</groupId>
+    <groupId>com.vaadinbaseapp</groupId>
     <artifactId>ms-audit</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <name>ms-audit</name>

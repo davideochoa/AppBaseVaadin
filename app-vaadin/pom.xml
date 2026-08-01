@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.appbasevaadin</groupId>
+    <groupId>com.vaadinbaseapp</groupId>
     <artifactId>app-vaadin</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <name>app-vaadin</name>

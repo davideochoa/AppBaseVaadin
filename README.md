@@ -1,4 +1,4 @@
-# AppBaseVaadin
+# VaadinBaseApp
 
 Reference monorepo for a microservices architecture with a Vaadin
 frontend, fully decoupled from the backend from the start (REST + JWT,

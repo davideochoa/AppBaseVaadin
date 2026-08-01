@@ -1,10 +1,17 @@
-# Plan: rename del proyecto `AppBaseVaadin` → `VaadinBaseApp`
+﻿# Plan: rename del proyecto `AppBaseVaadin` → `VaadinBaseApp`
 
 **Estado: NO EJECUTADO.** Este archivo documenta el plan acordado el
 2026-07-31; se aplica en una rama dedicada, después de commitear y
 mergear el trabajo en curso en `feature/run-ms` (username + reset
 forzado de contraseña). No borrar este archivo hasta que el rename
 esté hecho y verificado — bórralo como parte del PR que lo aplique.
+
+**Precondición ya cumplida (verificado 2026-07-31):** `feature/run-ms`
+(PR #40, merge `f974a45`) ya está mergeado en `main` —
+`git log --oneline main..feature/run-ms` da vacío. `main` está en
+`f974a45`, es la punta real. Se puede arrancar la Etapa 0 de la
+sección "Plan de ejecución por etapas" de inmediato, sin esperar nada
+más.
 
 ## Alcance confirmado con el usuario
 
@@ -152,6 +159,128 @@ nuevo `groupId`).
     todavía con el nombre correcto en ese momento.
 12. Actualizar la URL del remoto local + renombrar la carpeta local
     (sección 6), al final.
+
+## Plan de ejecución por etapas (de menor a mayor impacto)
+
+Reordena el "Orden de ejecución sugerido" de arriba en etapas
+independientes y commiteables por separado (no un único commit
+gigante), para poder compilar/testear/arrancar la app después de cada
+una en vez de validar todo el rename de una sola vez. Cada etapa
+asume que la anterior ya quedó en verde. Si algo falla en una etapa
+media, las etapas previas ya están confirmadas y no hay que
+re-auditar todo el diff para encontrar el problema.
+
+### Etapa 0 — Rama de trabajo (impacto: ninguno)
+
+- `git checkout main` (ya debería estar actualizado — ver
+  precondición arriba) → `git checkout -b rename/vaadinbaseapp`.
+- Test: `git status` limpio, nada tocado todavía.
+
+### Etapa 1 — Documentación pura (impacto: cosmético, cero riesgo funcional)
+
+- `README.md`, `claude.md`, y el comentario en `.gitignore`
+  (`/.idea/AppBaseVaadin.iml`) — nada de código ni `pom.xml`.
+- Test: `mvn clean compile` en los 4 módulos reales debe seguir en
+  verde exactamente igual que antes de tocar nada (confirma que no se
+  rozó código por accidente al editar los `.md`).
+- Commit: p. ej. `docs: update project name references`.
+
+### Etapa 2 — `app-vaadin-dummy` (impacto: mínimo, módulo aislado)
+
+Por qué va primero entre los módulos de código: no tiene workflow de
+CI propio (no aparece en `.github/workflows/`), no lo menciona
+`README.md`/`claude.md`, y ningún otro módulo depende de él — es el
+candidato de menor blast radius para ensayar el refactor completo
+(IDE "rename package" + `groupId` a mano en `pom.xml`) antes de tocar
+código que sí importa en producción.
+
+- Refactor de paquete `com.appbasevaadin` → `com.vaadinbaseapp` +
+  `groupId` en `app-vaadin-dummy/pom.xml`.
+- Test: `grep -rn "com.appbasevaadin\|appbasevaadin" app-vaadin-dummy/`
+  → cero resultados. `mvn -f app-vaadin-dummy/pom.xml clean compile`.
+- Commit separado.
+
+### Etapa 3 — `ms-users` (impacto: bajo-medio, backend standalone)
+
+Menos acoplado de los tres microservicios reales: nadie lo llama por
+REST salvo `ms-security` (y solo para el auto-provisioning de
+Google). Tiene CI propio (`ms-users-ci.yml`) como red de seguridad
+adicional.
+
+- Refactor de paquete + `groupId`.
+- Test: grep scoped a `ms-users/` en cero, `mvn -f ms-users/pom.xml
+  clean compile`, `mvn -f ms-users/pom.xml clean test -Dtest='!*IT'`.
+  Si es viable en la máquina: `mvn -f ms-users/pom.xml spring-boot:run`
+  contra un Postgres descartable (workaround de la Lección 6) +
+  `curl` de humo a `/actuator/health` y `GET /user-types`.
+- Commit separado.
+
+### Etapa 4 — `ms-audit` (impacto: medio — contiene la trampa conocida de Kafka)
+
+- Refactor de paquete + `groupId`, **más** la corrección manual de los
+  dos strings literales en
+  `ms-audit/src/main/resources/application.yml` (sección 3 arriba) —
+  el refactor automático del IDE no los toca.
+- Test: repetir el grep pero incluyendo `--include="*.yml"` esta vez
+  (no solo `.java`) → cero resultados. `mvn -f ms-audit/pom.xml clean
+  compile` + `test -Dtest='!*IT'`. Si es viable, verificación real de
+  punta a punta con un broker Kafka descartable (Lección 6/Fase 3):
+  publicar un evento real y confirmar que el listener lo deserializa
+  — un test mockeado pasaría en falso con el nombre de clase viejo
+  todavía en el YAML, que es justo la advertencia de la sección 3.
+- Commit separado.
+
+### Etapa 5 — `ms-security` (impacto: medio-alto — emisor de JWT/JWKS, acoplado a `ms-users`)
+
+- Refactor de paquete + `groupId`.
+- Test: grep en cero, compile + test unitario. Verificación manual
+  clave: levantar `ms-users` (ya renombrado en la Etapa 3) +
+  `ms-security` juntos y confirmar que `UsersClient` sigue resolviendo
+  el auto-provisioning de Google y que
+  `GET /.well-known/jwks.json` sigue siendo consumible — primer punto
+  donde dos módulos ya renombrados interactúan en tiempo de ejecución.
+- Commit separado.
+
+### Etapa 6 — `app-vaadin` (impacto: alto — depende de los 3 backends a la vez)
+
+- Refactor de paquete + `groupId`.
+- Test: grep en cero, `mvn clean verify` offline (el mismo comando que
+  corre su CI). Luego el golden path manual ya usado en la Fase 4
+  (login, CRUD, RBAC, cambio EN/ES) contra los tres backends ya
+  renombrados — primera vez que se ejercita el stack completo
+  post-rename.
+- Commit separado.
+
+### Etapa 7 — Verificación integrada completa (impacto: alto, pero de solo lectura/verificación)
+
+- `docker compose build && docker compose up` con los 4 módulos ya
+  renombrados — repite el smoke test de la Fase 5 (login admin →
+  token → `GET /users` autorizado) sobre las imágenes Docker
+  completas, no solo `mvn spring-boot:run` en local.
+- Gate final de todas las etapas de código:
+  `grep -rn "com.appbasevaadin\|appbasevaadin" --include="*.java" --include="*.yml" --include="*.properties" .`
+  sobre **todo** el repo → cero resultados.
+
+### Etapa 8 — Push, PR y merge (impacto: alto — visible para colaboradores/CI)
+
+- Push de `rename/vaadinbaseapp`, abrir PR, esperar los 5 workflows en
+  verde (incluyendo `integration-ci.yml`), mergear a `main`.
+
+### Etapa 9 — Rename del repositorio de GitHub (impacto: alto, external-facing)
+
+- **Después** de mergear el PR de código, no antes — para que el PR
+  se haya abierto contra el nombre de repo todavía correcto en su
+  momento. `gh repo rename VaadinBaseApp` (o vía UI).
+- Test: `git ls-remote https://github.com/davideochoa/VaadinBaseApp.git`
+  responde antes de tocar nada localmente.
+
+### Etapa 10 — Entorno local (impacto: alto solo para esta máquina, no para el código)
+
+- `git remote set-url origin https://github.com/davideochoa/VaadinBaseApp.git`.
+- Renombrar la carpeta local `C:\Proyectos\AppBaseVaadin` →
+  `C:\Proyectos\VaadinBaseApp` — al final, como ya indicaba la sección
+  6 original.
+- Reabrir en IntelliJ para que `.idea/*` se regenere limpio.
 
 ## Explícitamente fuera de alcance (según lo acordado)
 
