@@ -27,7 +27,7 @@ Once everything is up:
 - `ms-audit` Swagger UI: http://localhost:8083/swagger-ui.html
 
 Bootstrap admin login (unless `BOOTSTRAP_ADMIN_PASSWORD` was set in
-`.env`): `admin@local` / `admin123`.
+`.env`): `admin` / `admin123`.
 
 `docker compose down` keeps the Postgres data volumes; add `-v` to wipe
 them and start from a clean seed on the next `up`.
@@ -108,7 +108,7 @@ Health/JWKS endpoints worth checking while services come up:
 - http://localhost:8083/actuator/health
 
 Bootstrap admin login (unless `BOOTSTRAP_ADMIN_PASSWORD` was set in the
-environment): `admin@local` / `admin123`.
+environment): `admin` / `admin123`.
 
 Containers from this workaround are disposable — safe to leave running
 between sessions or to remove (`docker rm -f pg-users pg-security
