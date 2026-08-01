@@ -1,0 +1,65 @@
+package com.vaadinbaseapp.appvaadin.views.users;
+
+import com.vaadinbaseapp.appvaadin.auth.AuthenticatedUser;
+import com.vaadinbaseapp.appvaadin.dto.PageResponse;
+import com.vaadinbaseapp.appvaadin.facade.SecurityUserFacade;
+import com.vaadinbaseapp.appvaadin.facade.UserFacade;
+import com.vaadinbaseapp.appvaadin.testutil.KaribuTestSetup;
+import com.github.mvysny.kaributesting.v10.MockVaadin;
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import java.util.List;
+
+import static com.github.mvysny.kaributesting.v10.LocatorJ._find;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.when;
+
+class UserListViewTest {
+
+    private UserFacade userFacade;
+    private SecurityUserFacade securityUserFacade;
+
+    @BeforeEach
+    void setUp() {
+        KaribuTestSetup.setupProductionMode();
+        userFacade = Mockito.mock(UserFacade.class);
+        securityUserFacade = Mockito.mock(SecurityUserFacade.class);
+        when(userFacade.search(any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(new PageResponse<>(List.of(), 0, 0, 0, 20));
+        when(userFacade.listUserTypes()).thenReturn(List.of());
+    }
+
+    @AfterEach
+    void tearDown() {
+        MockVaadin.tearDown();
+    }
+
+    @Test
+    void administratorSeesTheNewUserButton() {
+        AuthenticatedUser adminUser = Mockito.mock(AuthenticatedUser.class);
+        when(adminUser.hasRole("ADMINISTRATOR")).thenReturn(true);
+
+        UserListView view = new UserListView(userFacade, securityUserFacade, adminUser);
+        UI.getCurrent().add(view);
+
+        assertThat(_find(view, Button.class)).isNotEmpty();
+    }
+
+    @Test
+    void nonAdministratorDoesNotSeeTheNewUserButton() {
+        AuthenticatedUser regularUser = Mockito.mock(AuthenticatedUser.class);
+        when(regularUser.hasRole("ADMINISTRATOR")).thenReturn(false);
+
+        UserListView view = new UserListView(userFacade, securityUserFacade, regularUser);
+        UI.getCurrent().add(view);
+
+        assertThat(_find(view, Button.class)).isEmpty();
+    }
+}
