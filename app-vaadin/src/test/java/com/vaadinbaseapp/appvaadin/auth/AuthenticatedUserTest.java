@@ -43,7 +43,7 @@ class AuthenticatedUserTest {
     @Test
     void loginMakesTheUserAuthenticatedWithDecodedClaims() {
         String token = fakeJwt("jane@example.com", "ADMINISTRATOR", Instant.now().plusSeconds(600).getEpochSecond());
-        authenticatedUser.login(new TokenResponse(token, "refresh-token", false, "Bearer"));
+        authenticatedUser.login(new TokenResponse(token, "refresh-token", false, null, "Bearer"));
 
         assertThat(authenticatedUser.isAuthenticated()).isTrue();
         assertThat(authenticatedUser.getEmail()).contains("jane@example.com");
@@ -54,7 +54,7 @@ class AuthenticatedUserTest {
     @Test
     void anExpiredTokenIsNotConsideredAuthenticated() {
         String token = fakeJwt("jane@example.com", "USER", Instant.now().minusSeconds(60).getEpochSecond());
-        authenticatedUser.login(new TokenResponse(token, "refresh-token", false, "Bearer"));
+        authenticatedUser.login(new TokenResponse(token, "refresh-token", false, null, "Bearer"));
 
         assertThat(authenticatedUser.isAuthenticated()).isFalse();
     }
@@ -62,7 +62,7 @@ class AuthenticatedUserTest {
     @Test
     void logoutClearsTheSession() {
         String token = fakeJwt("jane@example.com", "USER", Instant.now().plusSeconds(600).getEpochSecond());
-        authenticatedUser.login(new TokenResponse(token, "refresh-token", false, "Bearer"));
+        authenticatedUser.login(new TokenResponse(token, "refresh-token", false, null, "Bearer"));
 
         authenticatedUser.logout();
 
@@ -78,7 +78,7 @@ class AuthenticatedUserTest {
     @Test
     void mustResetPasswordFlagIsCarriedFromTheTokenResponse() {
         String token = fakeJwt("jane@example.com", "USER", Instant.now().plusSeconds(600).getEpochSecond());
-        authenticatedUser.login(new TokenResponse(token, "refresh-token", true, "Bearer"));
+        authenticatedUser.login(new TokenResponse(token, "refresh-token", true, "raw-reset-token", "Bearer"));
 
         assertThat(authenticatedUser.isMustResetPassword()).isTrue();
     }

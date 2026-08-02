@@ -1,9 +1,8 @@
 package com.vaadinbaseapp.appvaadin.views.login;
 
-import com.vaadinbaseapp.appvaadin.auth.AuthenticatedUser;
 import com.vaadinbaseapp.appvaadin.client.ApiException;
+import com.vaadinbaseapp.appvaadin.dto.TokenResponse;
 import com.vaadinbaseapp.appvaadin.facade.AuthFacade;
-import com.vaadinbaseapp.appvaadin.facade.SecurityUserFacade;
 import com.vaadinbaseapp.appvaadin.views.users.UserListView;
 import com.vaadin.flow.component.ClientCallable;
 import com.vaadin.flow.component.Key;
@@ -26,20 +25,14 @@ public class LoginView extends VerticalLayout {
     private static final String GOOGLE_BUTTON_CONTAINER_ID = "google-btn-container";
 
     private final AuthFacade authFacade;
-    private final AuthenticatedUser authenticatedUser;
-    private final SecurityUserFacade securityUserFacade;
 
     private final TextField usernameField = new TextField();
     private final PasswordField passwordField = new PasswordField();
     private final Span errorMessage = new Span();
     private final Div googleButtonContainer = new Div();
 
-    public LoginView(AuthFacade authFacade, AuthenticatedUser authenticatedUser,
-                      SecurityUserFacade securityUserFacade,
-                      @Value("${app.google.client-id:}") String googleClientId) {
+    public LoginView(AuthFacade authFacade, @Value("${app.google.client-id:}") String googleClientId) {
         this.authFacade = authFacade;
-        this.authenticatedUser = authenticatedUser;
-        this.securityUserFacade = securityUserFacade;
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -77,8 +70,8 @@ public class LoginView extends VerticalLayout {
 
     private void attemptLogin() {
         try {
-            authFacade.login(usernameField.getValue(), passwordField.getValue());
-            proceedAfterLogin();
+            TokenResponse tokens = authFacade.login(usernameField.getValue(), passwordField.getValue());
+            handleLoginResult(tokens);
         } catch (ApiException e) {
             showError(getTranslation("login.error"));
         }
@@ -103,23 +96,37 @@ public class LoginView extends VerticalLayout {
     @ClientCallable
     private void onGoogleCredential(String idToken) {
         try {
-            authFacade.loginWithGoogle(idToken);
-            proceedAfterLogin();
+            TokenResponse tokens = authFacade.loginWithGoogle(idToken);
+            handleLoginResult(tokens);
         } catch (ApiException e) {
             showError(getTranslation("login.error"));
         }
     }
 
-    private void proceedAfterLogin() {
-        if (authenticatedUser.isMustResetPassword()) {
-            new ForcePasswordResetDialog(securityUserFacade,
-                    () -> UI.getCurrent().navigate(UserListView.class)).open();
+    private void handleLoginResult(TokenResponse tokens) {
+        if (tokens.mustResetPassword()) {
+            new ForcePasswordResetDialog(authFacade, tokens.resetToken(), this::onPasswordResetSuccess).open();
         } else {
             UI.getCurrent().navigate(UserListView.class);
         }
     }
 
+    private void onPasswordResetSuccess() {
+        usernameField.clear();
+        passwordField.clear();
+        showInfo(getTranslation("resetPassword.success"));
+    }
+
     private void showError(String message) {
+        errorMessage.getElement().getThemeList().remove("badge success");
+        errorMessage.getElement().getThemeList().add("badge error");
+        errorMessage.setText(message);
+        errorMessage.setVisible(true);
+    }
+
+    private void showInfo(String message) {
+        errorMessage.getElement().getThemeList().remove("badge error");
+        errorMessage.getElement().getThemeList().add("badge success");
         errorMessage.setText(message);
         errorMessage.setVisible(true);
     }

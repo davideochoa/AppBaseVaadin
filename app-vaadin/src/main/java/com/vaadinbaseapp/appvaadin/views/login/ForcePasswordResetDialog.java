@@ -1,7 +1,7 @@
 package com.vaadinbaseapp.appvaadin.views.login;
 
 import com.vaadinbaseapp.appvaadin.client.ApiException;
-import com.vaadinbaseapp.appvaadin.facade.SecurityUserFacade;
+import com.vaadinbaseapp.appvaadin.facade.AuthFacade;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Paragraph;
@@ -10,23 +10,28 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
 
 /**
- * Shown right after a successful login when the account is flagged
- * mustResetPassword (a brand-new user, or one an admin just reset) — the
- * account's current password is predictable (its own username, encrypted),
- * so the user must replace it before doing anything else. Not closable via
- * ESC/outside-click: this isn't optional.
+ * Shown right after a login response comes back flagged mustResetPassword —
+ * the account never received a full session (no accessToken/refreshToken),
+ * only a single-use resetToken scoped to this flow. Not closable via
+ * ESC/outside-click: this isn't optional. On success the caller is expected
+ * to send the user back to a fresh login with the new password (no
+ * autologin) — this dialog never touches AuthenticatedUser/VaadinSession.
  */
 public class ForcePasswordResetDialog extends Dialog {
 
-    private final SecurityUserFacade securityUserFacade;
+    private static final int MIN_PASSWORD_LENGTH = 4;
+
+    private final AuthFacade authFacade;
+    private final String resetToken;
     private final Runnable onSuccess;
 
     private final PasswordField newPassword = new PasswordField();
     private final PasswordField confirmPassword = new PasswordField();
     private final Span errorMessage = new Span();
 
-    public ForcePasswordResetDialog(SecurityUserFacade securityUserFacade, Runnable onSuccess) {
-        this.securityUserFacade = securityUserFacade;
+    public ForcePasswordResetDialog(AuthFacade authFacade, String resetToken, Runnable onSuccess) {
+        this.authFacade = authFacade;
+        this.resetToken = resetToken;
         this.onSuccess = onSuccess;
 
         setCloseOnEsc(false);
@@ -55,7 +60,7 @@ public class ForcePasswordResetDialog extends Dialog {
     private void submit() {
         errorMessage.setVisible(false);
 
-        if (newPassword.getValue() == null || newPassword.getValue().length() < 6) {
+        if (newPassword.getValue() == null || newPassword.getValue().length() < MIN_PASSWORD_LENGTH) {
             showError(getTranslation("resetPassword.error.tooShort"));
             return;
         }
@@ -65,7 +70,7 @@ public class ForcePasswordResetDialog extends Dialog {
         }
 
         try {
-            securityUserFacade.changeOwnPassword(newPassword.getValue());
+            authFacade.completePasswordReset(resetToken, newPassword.getValue());
             close();
             onSuccess.run();
         } catch (ApiException e) {

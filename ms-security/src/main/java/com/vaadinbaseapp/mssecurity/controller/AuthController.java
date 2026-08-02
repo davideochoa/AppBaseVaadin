@@ -1,6 +1,7 @@
 package com.vaadinbaseapp.mssecurity.controller;
 
 import com.vaadinbaseapp.mssecurity.config.ClientIpResolver;
+import com.vaadinbaseapp.mssecurity.dto.CompleteResetPasswordRequest;
 import com.vaadinbaseapp.mssecurity.dto.GoogleLoginRequest;
 import com.vaadinbaseapp.mssecurity.dto.LoginRequest;
 import com.vaadinbaseapp.mssecurity.dto.RefreshRequest;
@@ -37,6 +38,12 @@ public class AuthController {
     public TokenResponse loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request,
                                           HttpServletRequest httpRequest) {
         return googleLoginService.login(request.getIdToken(), clientIpResolver.resolve(httpRequest));
+    }
+
+    @PostMapping("/login/reset-password")
+    public ResponseEntity<Void> completePasswordReset(@Valid @RequestBody CompleteResetPasswordRequest request) {
+        authService.completePasswordReset(request.getResetToken(), request.getNewPassword());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/refresh")

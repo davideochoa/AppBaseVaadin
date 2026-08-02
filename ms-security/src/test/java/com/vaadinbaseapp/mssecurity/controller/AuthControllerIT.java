@@ -1,5 +1,6 @@
 package com.vaadinbaseapp.mssecurity.controller;
 
+import com.vaadinbaseapp.mssecurity.dto.CompleteResetPasswordRequest;
 import com.vaadinbaseapp.mssecurity.dto.GoogleLoginRequest;
 import com.vaadinbaseapp.mssecurity.dto.LoginRequest;
 import com.vaadinbaseapp.mssecurity.dto.RefreshRequest;
@@ -115,6 +116,54 @@ class AuthControllerIT extends PostgresTestContainerBase {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(response.getBody()).contains("UNAUTHORIZED");
+    }
+
+    @Test
+    void accountFlaggedMustResetPasswordCannotLoginNormallyUntilItCompletesTheResetFlow() {
+        long unique = System.nanoTime();
+        SecurityUser flagged = new SecurityUser();
+        flagged.setUsername("needs.reset." + unique);
+        flagged.setEmail("needs.reset." + unique + "@example.com");
+        flagged.setPasswordHash(passwordEncoder.encode("old-password"));
+        flagged.setRole("USER");
+        flagged.setAuthProvider(AuthProvider.LOCAL);
+        flagged.setActive(true);
+        flagged.setMustResetPassword(true);
+        securityUserRepository.save(flagged);
+
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setUsername(flagged.getUsername());
+        loginRequest.setPassword("old-password");
+        ResponseEntity<TokenResponse> loginResponse = restTemplate.postForEntity(
+                "/login", loginRequest, TokenResponse.class);
+
+        assertThat(loginResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(loginResponse.getBody().isMustResetPassword()).isTrue();
+        assertThat(loginResponse.getBody().getAccessToken()).isNull();
+        assertThat(loginResponse.getBody().getRefreshToken()).isNull();
+        String resetToken = loginResponse.getBody().getResetToken();
+        assertThat(resetToken).isNotBlank();
+
+        CompleteResetPasswordRequest samePassword = new CompleteResetPasswordRequest();
+        samePassword.setResetToken(resetToken);
+        samePassword.setNewPassword("old-password");
+        ResponseEntity<String> rejected = restTemplate.postForEntity(
+                "/login/reset-password", samePassword, String.class);
+        assertThat(rejected.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+        CompleteResetPasswordRequest newPassword = new CompleteResetPasswordRequest();
+        newPassword.setResetToken(resetToken);
+        newPassword.setNewPassword("brand-new-password");
+        ResponseEntity<Void> completed = restTemplate.postForEntity(
+                "/login/reset-password", newPassword, Void.class);
+        assertThat(completed.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        loginRequest.setPassword("brand-new-password");
+        ResponseEntity<TokenResponse> finalLogin = restTemplate.postForEntity(
+                "/login", loginRequest, TokenResponse.class);
+        assertThat(finalLogin.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(finalLogin.getBody().isMustResetPassword()).isFalse();
+        assertThat(finalLogin.getBody().getAccessToken()).isNotBlank();
     }
 
     @Test

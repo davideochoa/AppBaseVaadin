@@ -28,6 +28,7 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+          cache-dependency-path: app-vaadin/pom.xml
 
       - name: Build and run tests
         run: mvn --batch-mode --update-snapshots clean verify

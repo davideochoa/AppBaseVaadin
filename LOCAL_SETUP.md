@@ -26,8 +26,10 @@ Once everything is up:
 - `ms-security` Swagger UI: http://localhost:8082/swagger-ui.html
 - `ms-audit` Swagger UI: http://localhost:8083/swagger-ui.html
 
-Bootstrap admin login (unless `BOOTSTRAP_ADMIN_PASSWORD` was set in
-`.env`): `admin` / `admin123`.
+Bootstrap admin login: `admin` / `admin`. This account always has a
+forced password reset on first login — `app-vaadin` won't grant a
+session on that first login and instead prompts for a new password
+(at least 4 characters, different from `admin`) before you can sign in.
 
 `docker compose down` keeps the Postgres data volumes; add `-v` to wipe
 them and start from a clean seed on the next `up`.
@@ -107,9 +109,70 @@ Health/JWKS endpoints worth checking while services come up:
 - http://localhost:8082/.well-known/jwks.json
 - http://localhost:8083/actuator/health
 
-Bootstrap admin login (unless `BOOTSTRAP_ADMIN_PASSWORD` was set in the
-environment): `admin` / `admin123`.
+Bootstrap admin login: `admin` / `admin`. This account always has a
+forced password reset on first login (see the docker-compose section
+above for what that flow looks like).
 
 Containers from this workaround are disposable — safe to leave running
 between sessions or to remove (`docker rm -f pg-users pg-security
 pg-audit kafka`) once you're done.
+
+## "Sign in with Google"
+
+Google login is already built, wired up end-to-end, and **on by
+default on `main`** — `docker-compose.yml` and `.env.example` both ship
+a working `GOOGLE_CLIENT_ID` (a shared testing OAuth client), so both
+Option 1 and Option 2 show the "Sign in with Google" button with zero
+setup. OAuth Client IDs aren't secret (see the troubleshooting note
+below for why), so committing this one is safe.
+
+The steps below are only needed if you want to swap in **your own**
+Google Cloud project's credentials instead of the shared default (e.g.
+a different Authorized JavaScript origin, or to fully disable the
+button by setting `GOOGLE_CLIENT_ID=` blank in your local `.env`).
+
+**1. Create OAuth credentials in Google Cloud Console**
+
+- Google Cloud Console → APIs & Services → Credentials → Create
+  Credentials → OAuth client ID → Application type **Web application**.
+- Under **Authorized JavaScript origins**, add the origin the browser
+  actually reaches `app-vaadin` on — by default `http://localhost:8080`
+  (must match `APP_VAADIN_ORIGIN` from `.env`/`.env.example`, also used
+  for backend CORS). No redirect URI needed — this is Google Identity
+  Services' JS "Sign In With Google" button (id-token passthrough), not
+  a server-side OAuth redirect flow.
+- Copy the generated **Client ID**
+  (`1234567890-abc...apps.googleusercontent.com`).
+
+**2. Set the env var**
+
+- In `.env` (copied from `.env.example`), set
+  `GOOGLE_CLIENT_ID=<the client id>`.
+- Same variable for both run modes:
+  - **Option 1** (`docker compose`): read automatically from `.env`.
+  - **Option 2** (manual `mvn spring-boot:run`): export
+    `GOOGLE_CLIENT_ID=<value>` before starting `ms-security` and
+    `app-vaadin` (the two modules that use it), or add it to
+    `scripts/start-ms.bat` if you use that script.
+- Restart `ms-security` and `app-vaadin` — both read this property only
+  at startup, no hot reload.
+
+**3. What to expect**
+
+- The "Sign in with Google" button appears on the login page once
+  `app-vaadin` has a non-blank client ID.
+- First login with a given Google account auto-creates a **non-admin**
+  (`USER`) `ms-users` profile — promote it through the existing
+  admin-only user management screen if it needs `ADMINISTRATOR`.
+- Google-provisioned accounts have no password — they can only log in
+  via the Google button, never the username/password form.
+
+**Troubleshooting**
+
+- Button missing: `GOOGLE_CLIENT_ID` is blank/unset for `app-vaadin`, or
+  it wasn't restarted after setting it.
+- Error right after picking a Google account: usually a mismatch between
+  the **Authorized JavaScript origin** in Google Cloud Console and the
+  browser's actual origin, or `GOOGLE_CLIENT_ID` differing between
+  `app-vaadin` and `ms-security` — the id-token's audience must match
+  `ms-security`'s configured client ID exactly.
