@@ -12,6 +12,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+
 /**
  * Admin-driven credential management, kept separate from {@link AuthService}
  * (login/refresh/logout) since it's a different concern: creating/editing the
@@ -21,8 +23,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class SecurityUserAdminService {
 
+    /**
+     * Excludes visually ambiguous characters (0/O, 1/l/I) since this string is
+     * meant to be relayed by an admin to a user over chat/phone/etc.
+     */
+    private static final String TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    private static final int TEMP_PASSWORD_LENGTH = 16;
+
     private final SecurityUserRepository securityUserRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public SecurityUserAdminService(SecurityUserRepository securityUserRepository,
                                      PasswordEncoder passwordEncoder) {
@@ -31,9 +41,12 @@ public class SecurityUserAdminService {
     }
 
     /**
-     * Default password is the username itself, encrypted — the admin never
-     * types a password for a newly created user. The account is flagged so
-     * the very next login forces the user to pick a real one.
+     * Default password is a random, one-time temporary password (never the
+     * username — that's guessable by anyone who knows/derives the username)
+     * — the admin never types a password for a newly created user, and the
+     * generated value is returned once so the admin can relay it to the new
+     * user out-of-band. The account is flagged so the very next login forces
+     * the user to pick a real one.
      */
     public SecurityUserResponse create(SecurityUserCreateRequest request) {
         SecurityUser user = new SecurityUser();
@@ -43,10 +56,11 @@ public class SecurityUserAdminService {
         user.setUserId(request.getUserId());
         user.setAuthProvider(AuthProvider.LOCAL);
         user.setActive(true);
-        user.setPasswordHash(passwordEncoder.encode(request.getUsername()));
+        String temporaryPassword = generateTemporaryPassword();
+        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
         user.setMustResetPassword(true);
         securityUserRepository.save(user);
-        return toResponse(user);
+        return toResponse(user, temporaryPassword);
     }
 
     public SecurityUserResponse update(String username, SecurityUserUpdateRequest request) {
@@ -60,16 +74,25 @@ public class SecurityUserAdminService {
     }
 
     /**
-     * Resets the password back to the (possibly just-renamed) username,
-     * encrypted, and forces a reset on the next login — the same default
-     * state as a freshly created user.
+     * Resets the password to a fresh random temporary one (see {@link #create})
+     * and forces a reset on the next login — the same default state as a
+     * freshly created user.
      */
     public SecurityUserResponse resetPassword(String username) {
         SecurityUser user = findByUsername(username);
-        user.setPasswordHash(passwordEncoder.encode(user.getUsername()));
+        String temporaryPassword = generateTemporaryPassword();
+        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
         user.setMustResetPassword(true);
         securityUserRepository.save(user);
-        return toResponse(user);
+        return toResponse(user, temporaryPassword);
+    }
+
+    private String generateTemporaryPassword() {
+        StringBuilder password = new StringBuilder(TEMP_PASSWORD_LENGTH);
+        for (int i = 0; i < TEMP_PASSWORD_LENGTH; i++) {
+            password.append(TEMP_PASSWORD_ALPHABET.charAt(secureRandom.nextInt(TEMP_PASSWORD_ALPHABET.length())));
+        }
+        return password.toString();
     }
 
     /**
@@ -89,7 +112,11 @@ public class SecurityUserAdminService {
     }
 
     private SecurityUserResponse toResponse(SecurityUser user) {
+        return toResponse(user, null);
+    }
+
+    private SecurityUserResponse toResponse(SecurityUser user, String temporaryPassword) {
         return new SecurityUserResponse(user.getUsername(), user.getEmail(), user.getRole(),
-                user.isActive(), user.isMustResetPassword());
+                user.isActive(), user.isMustResetPassword(), temporaryPassword);
     }
 }

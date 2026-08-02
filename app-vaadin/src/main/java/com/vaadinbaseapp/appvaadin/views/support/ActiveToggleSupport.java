@@ -1,6 +1,7 @@
 package com.vaadinbaseapp.appvaadin.views.support;
 
 import com.vaadinbaseapp.appvaadin.client.ApiException;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.notification.Notification;
 
@@ -29,9 +30,22 @@ public final class ActiveToggleSupport {
         try {
             persist.run();
         } catch (ApiException e) {
-            Notification.show(e.getApiError() != null ? e.getApiError().message() : e.getMessage());
+            Notification.show(errorMessage(e));
         } finally {
             refresh.run();
         }
+    }
+
+    /**
+     * {@code ApiException} is always built from a structured {@code ApiError}
+     * (see {@code ApiClientSupport.handleError}), so getApiError() is never
+     * actually null today — this is a defensive fallback, not a live path, but
+     * it must stay a safe generic message rather than the raw local exception
+     * text (e.getMessage()), which could otherwise leak HTTP client internals.
+     */
+    private static String errorMessage(ApiException e) {
+        return e.getApiError() != null
+                ? e.getApiError().message()
+                : UI.getCurrent().getTranslation("common.unexpectedError");
     }
 }

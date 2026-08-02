@@ -9,7 +9,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -44,8 +47,24 @@ public class UserController {
         return userMapper.toResponse(userService.getById(id));
     }
 
+    /**
+     * Unlike {@code GET /{id}}/{@code search} (public by design — no sensitive
+     * data), this accepts a bare email as the lookup key, which is exactly the
+     * shape of a user-enumeration primitive. Any authenticated caller may look
+     * up their own profile this way (app-vaadin's MainLayout does, to render
+     * the current user's display name), and ms-security's inter-service
+     * SERVICE-token caller needs unrestricted lookup for Google
+     * auto-provisioning — but a regular user looking up someone else's email
+     * is not a legitimate case and is now rejected.
+     */
     @GetMapping("/by-email")
-    public UserResponse getByEmail(@RequestParam String email) {
+    public UserResponse getByEmail(@RequestParam String email, @AuthenticationPrincipal Jwt jwt) {
+        String callerRole = jwt.getClaimAsString("role");
+        boolean isPrivilegedCaller = "ADMINISTRATOR".equals(callerRole) || "SERVICE".equals(callerRole);
+        boolean isSelfLookup = email.equalsIgnoreCase(jwt.getClaimAsString("email"));
+        if (!isPrivilegedCaller && !isSelfLookup) {
+            throw new AccessDeniedException("Not authorized to look up another user's profile by email");
+        }
         return userMapper.toResponse(userService.getByEmail(email));
     }
 

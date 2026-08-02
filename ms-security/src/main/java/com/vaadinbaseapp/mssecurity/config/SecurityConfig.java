@@ -45,7 +45,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/login", "/login/google", "/login/reset-password",
                                 "/refresh", "/logout")
                         .permitAll()
-                        .requestMatchers(HttpMethod.GET, "/.well-known/jwks.json", "/actuator/**",
+                        .requestMatchers(HttpMethod.GET, "/.well-known/jwks.json",
+                                "/actuator/health", "/actuator/health/**", "/actuator/info",
                                 "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptionHandling -> exceptionHandling
