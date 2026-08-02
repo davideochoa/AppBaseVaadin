@@ -25,8 +25,8 @@ public class SecurityUserFacade {
                 new SecurityUserUpdateRequest(newUsername, email, role, active));
     }
 
-    public void resetPassword(String username) {
-        securityUserApiClient.resetPassword(username);
+    public SecurityUserResponse resetPassword(String username) {
+        return securityUserApiClient.resetPassword(username);
     }
 
     public void changeOwnPassword(String newPassword) {

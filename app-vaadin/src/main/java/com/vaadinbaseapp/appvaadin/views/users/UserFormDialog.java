@@ -1,6 +1,7 @@
 package com.vaadinbaseapp.appvaadin.views.users;
 
 import com.vaadinbaseapp.appvaadin.client.ApiException;
+import com.vaadinbaseapp.appvaadin.dto.SecurityUserResponse;
 import com.vaadinbaseapp.appvaadin.dto.UserRequest;
 import com.vaadinbaseapp.appvaadin.dto.UserResponse;
 import com.vaadinbaseapp.appvaadin.dto.UserTypeResponse;
@@ -13,6 +14,8 @@ import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -105,12 +108,15 @@ public class UserFormDialog extends Dialog {
                 userFacade.update(editingUserId, request);
                 securityUserFacade.update(originalUsername, username.getValue(), email.getValue(), role, active);
                 if (resetPassword.getValue()) {
-                    securityUserFacade.resetPassword(username.getValue());
+                    SecurityUserResponse reset = securityUserFacade.resetPassword(username.getValue());
+                    showTemporaryPassword(reset.temporaryPassword());
                 }
             } else {
                 UserResponse created = userFacade.create(request);
                 try {
-                    securityUserFacade.create(username.getValue(), email.getValue(), role, created.id());
+                    SecurityUserResponse securityUser =
+                            securityUserFacade.create(username.getValue(), email.getValue(), role, created.id());
+                    showTemporaryPassword(securityUser.temporaryPassword());
                 } catch (ApiException e) {
                     userFacade.hardDelete(created.id());
                     throw e;
@@ -121,6 +127,17 @@ public class UserFormDialog extends Dialog {
         } catch (ApiException e) {
             errorPresenter.applyErrors(e.getApiError());
         }
+    }
+
+    /**
+     * The backend only ever returns the generated temporary password once, in
+     * the create/reset-password response itself — it's never retrievable
+     * again afterwards, so the admin needs a clear chance to read/copy it now.
+     */
+    private void showTemporaryPassword(String temporaryPassword) {
+        Notification notification = Notification.show(
+                getTranslation("users.temporaryPassword", temporaryPassword), 15000, Notification.Position.MIDDLE);
+        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
     }
 
     private List<UserTypeResponse> selectableUserTypes(List<UserTypeResponse> userTypes, UserResponse existingUser) {

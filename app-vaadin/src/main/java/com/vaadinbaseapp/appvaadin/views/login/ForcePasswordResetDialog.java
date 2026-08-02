@@ -19,7 +19,7 @@ import com.vaadin.flow.component.textfield.PasswordField;
  */
 public class ForcePasswordResetDialog extends Dialog {
 
-    private static final int MIN_PASSWORD_LENGTH = 4;
+    private static final int MIN_PASSWORD_LENGTH = 8;
 
     private final AuthFacade authFacade;
     private final String resetToken;
@@ -74,7 +74,7 @@ public class ForcePasswordResetDialog extends Dialog {
             close();
             onSuccess.run();
         } catch (ApiException e) {
-            showError(e.getApiError() != null ? e.getApiError().message() : e.getMessage());
+            showError(e.getApiError() != null ? e.getApiError().message() : getTranslation("common.unexpectedError"));
         }
     }
 
