@@ -28,6 +28,7 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+          cache-dependency-path: ms-users/pom.xml
 
       - name: Build and run tests (Testcontainers via Docker on the runner)
         run: mvn --batch-mode --update-snapshots clean verify
