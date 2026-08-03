@@ -57,7 +57,12 @@ most commonly `app-vaadin`.
 **On Windows, `scripts/start-infra.bat` + `scripts/start-ms.bat` automate
 this option** (still uses plain `docker run` containers for Postgres/Kafka
 only — the 3 microservices and `app-vaadin` itself run natively via `mvn
-spring-boot:run`, no Docker involved for them):
+spring-boot:run`, no Docker involved for them). Both scripts `call
+scripts\load-env.bat`, which reads the repo-root `.env` (same file Option 1
+uses) and falls back to `docker-compose.yml`'s own defaults for anything
+unset — so DB credentials, `GOOGLE_CLIENT_ID`, JWT/TTL settings,
+`AUDIT_TOPIC` and `APP_VAADIN_ORIGIN` stay in sync with Option 1
+automatically; no manual edits needed inside the `.bat` files themselves:
 
 ```bat
 scripts\start-infra.bat
@@ -152,8 +157,10 @@ button by setting `GOOGLE_CLIENT_ID=` blank in your local `.env`).
   - **Option 1** (`docker compose`): read automatically from `.env`.
   - **Option 2** (manual `mvn spring-boot:run`): export
     `GOOGLE_CLIENT_ID=<value>` before starting `ms-security` and
-    `app-vaadin` (the two modules that use it), or add it to
-    `scripts/start-ms.bat` if you use that script.
+    `app-vaadin` (the two modules that use it). If you use
+    `scripts/start-ms.bat`, it also reads `GOOGLE_CLIENT_ID` straight from
+    `.env` via `scripts/load-env.bat` — just edit `.env`, no need to touch
+    the `.bat` files.
 - Restart `ms-security` and `app-vaadin` — both read this property only
   at startup, no hot reload.
 
