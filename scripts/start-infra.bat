@@ -6,6 +6,8 @@ REM Ver CLAUDE-RESTART.md, Leccion 6.
 
 setlocal enabledelayedexpansion
 
+call "%~dp0load-env.bat"
+
 echo Comprobando Docker Desktop...
 docker info >nul 2>&1
 if errorlevel 1 (
@@ -23,9 +25,9 @@ if errorlevel 1 (
     echo Docker ya esta corriendo.
 )
 
-call :ensure_container pg-users "postgres:16-alpine" -p 5433:5432 -e POSTGRES_DB=ms_users -e POSTGRES_USER=ms_users_app -e POSTGRES_PASSWORD=ms_users_pass
-call :ensure_container pg-security "postgres:16-alpine" -p 5434:5432 -e POSTGRES_DB=ms_security -e POSTGRES_USER=ms_security_app -e POSTGRES_PASSWORD=ms_security_pass
-call :ensure_container pg-audit "postgres:16-alpine" -p 5435:5432 -e POSTGRES_DB=ms_audit -e POSTGRES_USER=ms_audit_app -e POSTGRES_PASSWORD=ms_audit_pass
+call :ensure_container pg-users "postgres:16-alpine" -p 5433:5432 -e POSTGRES_DB=%DB_USERS_NAME% -e POSTGRES_USER=%DB_USERS_USER% -e POSTGRES_PASSWORD=%DB_USERS_PASSWORD%
+call :ensure_container pg-security "postgres:16-alpine" -p 5434:5432 -e POSTGRES_DB=%DB_SECURITY_NAME% -e POSTGRES_USER=%DB_SECURITY_USER% -e POSTGRES_PASSWORD=%DB_SECURITY_PASSWORD%
+call :ensure_container pg-audit "postgres:16-alpine" -p 5435:5432 -e POSTGRES_DB=%DB_AUDIT_NAME% -e POSTGRES_USER=%DB_AUDIT_USER% -e POSTGRES_PASSWORD=%DB_AUDIT_PASSWORD%
 call :ensure_container kafka "apache/kafka-native" -p 9092:9092
 
 echo.
